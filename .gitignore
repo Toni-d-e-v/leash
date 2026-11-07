@@ -1,0 +1,18 @@
+# secrets
+.keys/
+.env
+*.keypair.json
+
+# build
+target/
+node_modules/
+.next/
+dist/
+.anchor/
+test-ledger/
+
+# runtime
+agent/events.jsonl
+*.log
+.DS_Store
+*:Zone.Identifier
