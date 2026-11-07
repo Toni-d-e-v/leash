@@ -19,3 +19,12 @@ agent/events.jsonl
 demo-config.json
 app/public/demo-config.json
 docs/.video-tmp/
+
+# local notes (not part of the repo)
+.local/
+CLAUDE_CODE_AUTONOMOUS_PROMPT.md
+PROJECT.md
+PROGRESS.md
+DECISIONS.md
+HUMAN_TODO.md
+STATUS.md

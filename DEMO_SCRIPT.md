@@ -1,7 +1,7 @@
 # Leash — 3-minute demo script
 
 **Before recording**
-1. `npm run setup` (once). If you funded devnet, `npm run deploy:devnet` first (see HUMAN_TODO.md).
+1. `npm run setup` (once). If you funded devnet, `npm run deploy:devnet` first (needs ~5 SOL on the deploy wallet from faucet.solana.com).
 2. Start the stack without running the agent yet: `npm run demo -- --no-agent` (or plain `npm run demo`, which starts the agent by itself after 6s).
 3. Open **http://localhost:3000** full screen in one window and a terminal in another. Feed shows "Waiting for the agent".
 4. Optional: with `ANTHROPIC_API_KEY` set, the agent runs in LLM mode. For a guaranteed red row use `--mode scripted`, or `--mode llm --force-injection`.
