@@ -51,6 +51,7 @@ pub mod leash {
             paused: false,
             allowlist,
             bump: ctx.bumps.policy,
+            approval_threshold: 0,
         });
         Ok(())
     }
@@ -83,83 +84,113 @@ pub mod leash {
         reason_hash: [u8; 32],
     ) -> Result<()> {
         let now = Clock::get()?.unix_timestamp;
-        let recipient_token = &ctx.accounts.recipient_token;
-        let policy = &mut ctx.accounts.policy;
-
-        // 1. Kill switch
-        require!(!policy.paused, LeashError::PolicyPaused);
-        // 2. Expiry
+        let a = ctx.accounts;
+        // 1-5: kill switch, expiry, agent key, recipient allowlist, per-tx cap
+        a.policy.check_agent_spend(now, a.agent.key(), &a.recipient_token, amount)?;
+        // 6-7: roll the 24h window, daily budget
+        let spent_in_window = a.policy.roll_and_check_daily(now, amount)?;
+        // Large payments need the owner's approval (see `request_spend`)
         require!(
-            policy.expires_at == 0 || now < policy.expires_at,
-            LeashError::PolicyExpired
+            a.policy.approval_threshold == 0 || amount <= a.policy.approval_threshold,
+            LeashError::NeedsApproval
         );
-        // 3. Only the current agent key may spend
-        require_keys_eq!(
-            ctx.accounts.agent.key(),
-            policy.agent,
-            LeashError::UnauthorizedAgent
-        );
-        // 4. Recipient must be an allowlisted wallet holding the policy mint
-        require!(
-            recipient_token.mint == policy.mint
-                && policy.allowlist.contains(&recipient_token.owner),
-            LeashError::RecipientNotAllowed
-        );
-        // 5. Per-transaction cap
-        require!(
-            amount > 0 && amount <= policy.per_tx_cap,
-            LeashError::OverPerTxCap
-        );
-        // 6. Roll the 24h window
-        let elapsed = now
-            .checked_sub(policy.window_start)
-            .ok_or(LeashError::MathOverflow)?;
-        if elapsed >= WINDOW_SECS {
-            policy.spent_in_window = 0;
-            policy.window_start = now;
-        }
-        // 7. Daily budget
-        let spent_in_window = policy
-            .spent_in_window
-            .checked_add(amount)
-            .ok_or(LeashError::MathOverflow)?;
-        require!(spent_in_window <= policy.daily_cap, LeashError::OverDailyCap);
-
-        // 8. Transfer with the policy PDA as signer, then record and emit
-        let decimals = ctx.accounts.mint.decimals;
-        let cpi = TransferChecked {
-            from: ctx.accounts.vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            to: recipient_token.to_account_info(),
-            authority: policy.to_account_info(),
-        };
-        let id_bytes = policy.policy_id.to_le_bytes();
-        let seeds: &[&[u8]] = &[b"policy", policy.owner.as_ref(), &id_bytes, &[policy.bump]];
-        transfer_checked(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                cpi,
-                &[seeds],
-            ),
-            amount,
-            decimals,
-        )?;
-
-        policy.spent_in_window = spent_in_window;
-        policy.total_spent = policy
-            .total_spent
-            .checked_add(amount)
-            .ok_or(LeashError::MathOverflow)?;
-
+        // 8. Transfer with the policy PDA as signer, record, emit
+        pay_out(&a.policy, &a.mint, &a.vault, &a.recipient_token, &a.token_program, amount)?;
+        a.policy.record(spent_in_window, amount)?;
         emit!(SpendEvent {
-            policy: policy.key(),
-            recipient: recipient_token.owner,
+            policy: a.policy.key(),
+            recipient: a.recipient_token.owner,
             amount,
             request_id,
             reason_hash,
             spent_in_window,
             ts: now,
         });
+        Ok(())
+    }
+
+    /// Agent asks the owner to approve a payment above `approval_threshold`.
+    /// The same rules as `spend` apply; nothing moves until `approve_spend`.
+    pub fn request_spend(
+        ctx: Context<RequestSpend>,
+        amount: u64,
+        request_id: [u8; 32],
+        reason_hash: [u8; 32],
+    ) -> Result<()> {
+        let now = Clock::get()?.unix_timestamp;
+        let a = ctx.accounts;
+        a.policy.check_agent_spend(now, a.agent.key(), &a.recipient_token, amount)?;
+        a.policy.check_daily_preview(now, amount)?;
+        require!(
+            a.policy.approval_threshold > 0 && amount > a.policy.approval_threshold,
+            LeashError::ApprovalNotRequired
+        );
+        a.pending.set_inner(PendingSpend {
+            policy: a.policy.key(),
+            requester: a.agent.key(),
+            recipient_token: a.recipient_token.key(),
+            amount,
+            request_id,
+            reason_hash,
+            created_at: now,
+            bump: ctx.bumps.pending,
+        });
+        emit!(ApprovalRequested {
+            policy: a.policy.key(),
+            pending: a.pending.key(),
+            recipient: a.recipient_token.owner,
+            amount,
+            request_id,
+            reason_hash,
+            ts: now,
+        });
+        Ok(())
+    }
+
+    /// Owner approves a pending payment: rules are re-checked (the allowlist or
+    /// budget may have changed), then the vault pays and a `SpendEvent` is emitted.
+    pub fn approve_spend(ctx: Context<ResolveSpend>) -> Result<()> {
+        let now = Clock::get()?.unix_timestamp;
+        let a = ctx.accounts;
+        let p = &a.pending;
+        require!(
+            a.policy.expires_at == 0 || now < a.policy.expires_at,
+            LeashError::PolicyExpired
+        );
+        require!(
+            a.policy.allowlist.contains(&a.recipient_token.owner),
+            LeashError::RecipientNotAllowed
+        );
+        require!(p.amount <= a.policy.per_tx_cap, LeashError::OverPerTxCap);
+        let spent_in_window = a.policy.roll_and_check_daily(now, p.amount)?;
+        pay_out(&a.policy, &a.mint, &a.vault, &a.recipient_token, &a.token_program, p.amount)?;
+        a.policy.record(spent_in_window, p.amount)?;
+        emit!(SpendEvent {
+            policy: a.policy.key(),
+            recipient: a.recipient_token.owner,
+            amount: p.amount,
+            request_id: p.request_id,
+            reason_hash: p.reason_hash,
+            spent_in_window,
+            ts: now,
+        });
+        Ok(()) // `close = requester` refunds the pending account's rent to the agent
+    }
+
+    /// Owner declines a pending payment. Nothing moves; rent goes back to the agent.
+    pub fn reject_spend(ctx: Context<ResolveSpend>) -> Result<()> {
+        emit!(ApprovalRejected {
+            policy: ctx.accounts.policy.key(),
+            pending: ctx.accounts.pending.key(),
+            request_id: ctx.accounts.pending.request_id,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// Owner sets the amount above which a payment needs approval (0 = never).
+    pub fn set_approval_threshold(ctx: Context<OwnerOnly>, threshold: u64) -> Result<()> {
+        ctx.accounts.policy.approval_threshold = threshold;
         Ok(())
     }
 
@@ -234,6 +265,87 @@ fn validate_limits(per_tx_cap: u64, daily_cap: u64) -> Result<()> {
     Ok(())
 }
 
+impl Policy {
+    /// Spend rules 1-5, in order, each with its own error.
+    fn check_agent_spend(
+        &self,
+        now: i64,
+        signer: Pubkey,
+        recipient: &InterfaceAccount<TokenAccount>,
+        amount: u64,
+    ) -> Result<()> {
+        // 1. Kill switch
+        require!(!self.paused, LeashError::PolicyPaused);
+        // 2. Expiry
+        require!(self.expires_at == 0 || now < self.expires_at, LeashError::PolicyExpired);
+        // 3. Only the current agent key may spend
+        require_keys_eq!(signer, self.agent, LeashError::UnauthorizedAgent);
+        // 4. Recipient must be an allowlisted wallet holding the policy mint
+        require!(
+            recipient.mint == self.mint && self.allowlist.contains(&recipient.owner),
+            LeashError::RecipientNotAllowed
+        );
+        // 5. Per-transaction cap
+        require!(amount > 0 && amount <= self.per_tx_cap, LeashError::OverPerTxCap);
+        Ok(())
+    }
+
+    /// Rules 6-7: reset the window after 24h, then check the daily cap.
+    /// Returns the new `spent_in_window` (recorded only after the transfer).
+    fn roll_and_check_daily(&mut self, now: i64, amount: u64) -> Result<u64> {
+        let elapsed = now.checked_sub(self.window_start).ok_or(LeashError::MathOverflow)?;
+        if elapsed >= WINDOW_SECS {
+            self.spent_in_window = 0;
+            self.window_start = now;
+        }
+        let spent = self.spent_in_window.checked_add(amount).ok_or(LeashError::MathOverflow)?;
+        require!(spent <= self.daily_cap, LeashError::OverDailyCap);
+        Ok(spent)
+    }
+
+    /// Daily-cap check without touching state (used when only requesting approval).
+    fn check_daily_preview(&self, now: i64, amount: u64) -> Result<()> {
+        let elapsed = now.checked_sub(self.window_start).ok_or(LeashError::MathOverflow)?;
+        let base = if elapsed >= WINDOW_SECS { 0 } else { self.spent_in_window };
+        let spent = base.checked_add(amount).ok_or(LeashError::MathOverflow)?;
+        require!(spent <= self.daily_cap, LeashError::OverDailyCap);
+        Ok(())
+    }
+
+    fn record(&mut self, spent_in_window: u64, amount: u64) -> Result<()> {
+        self.spent_in_window = spent_in_window;
+        self.total_spent = self.total_spent.checked_add(amount).ok_or(LeashError::MathOverflow)?;
+        Ok(())
+    }
+}
+
+/// Vault → recipient transfer signed by the policy PDA.
+fn pay_out<'info>(
+    policy: &Account<'info, Policy>,
+    mint: &InterfaceAccount<'info, Mint>,
+    vault: &InterfaceAccount<'info, TokenAccount>,
+    to: &InterfaceAccount<'info, TokenAccount>,
+    token_program: &Interface<'info, TokenInterface>,
+    amount: u64,
+) -> Result<()> {
+    let id_bytes = policy.policy_id.to_le_bytes();
+    let seeds: &[&[u8]] = &[b"policy", policy.owner.as_ref(), &id_bytes, &[policy.bump]];
+    transfer_checked(
+        CpiContext::new_with_signer(
+            token_program.to_account_info(),
+            TransferChecked {
+                from: vault.to_account_info(),
+                mint: mint.to_account_info(),
+                to: to.to_account_info(),
+                authority: policy.to_account_info(),
+            },
+            &[seeds],
+        ),
+        amount,
+        mint.decimals,
+    )
+}
+
 // ---------------------------------------------------------------- state
 
 #[account]
@@ -253,6 +365,41 @@ pub struct Policy {
     #[max_len(8)]
     pub allowlist: Vec<Pubkey>,
     pub bump: u8,
+    /// Payments above this need the owner's approval (0 = never).
+    pub approval_threshold: u64,
+}
+
+/// A payment waiting for the owner. PDA seeds: `["pending", policy, request_id]`.
+#[account]
+#[derive(InitSpace)]
+pub struct PendingSpend {
+    pub policy: Pubkey,
+    pub requester: Pubkey,
+    pub recipient_token: Pubkey,
+    pub amount: u64,
+    pub request_id: [u8; 32],
+    pub reason_hash: [u8; 32],
+    pub created_at: i64,
+    pub bump: u8,
+}
+
+#[event]
+pub struct ApprovalRequested {
+    pub policy: Pubkey,
+    pub pending: Pubkey,
+    pub recipient: Pubkey,
+    pub amount: u64,
+    pub request_id: [u8; 32],
+    pub reason_hash: [u8; 32],
+    pub ts: i64,
+}
+
+#[event]
+pub struct ApprovalRejected {
+    pub policy: Pubkey,
+    pub pending: Pubkey,
+    pub request_id: [u8; 32],
+    pub ts: i64,
 }
 
 #[event]
@@ -289,6 +436,10 @@ pub enum LeashError {
     InvalidAmount,
     #[msg("Arithmetic overflow")]
     MathOverflow,
+    #[msg("Amount is above the approval threshold: use request_spend")]
+    NeedsApproval,
+    #[msg("Amount is within the approval threshold: use spend")]
+    ApprovalNotRequired,
 }
 
 // ---------------------------------------------------------------- accounts
@@ -381,6 +532,55 @@ pub struct Spend<'info> {
     pub vault: InterfaceAccount<'info, TokenAccount>,
     /// Destination token account; its owner must be allowlisted (checked in `spend`).
     #[account(mut)]
+    pub recipient_token: InterfaceAccount<'info, TokenAccount>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(amount: u64, request_id: [u8; 32])]
+pub struct RequestSpend<'info> {
+    #[account(mut)]
+    pub agent: Signer<'info>,
+    pub policy: Account<'info, Policy>,
+    #[account(
+        init,
+        payer = agent,
+        space = 8 + PendingSpend::INIT_SPACE,
+        seeds = [b"pending", policy.key().as_ref(), &request_id],
+        bump,
+    )]
+    pub pending: Account<'info, PendingSpend>,
+    /// Destination token account; checked against the allowlist in `request_spend`.
+    pub recipient_token: InterfaceAccount<'info, TokenAccount>,
+    pub system_program: Program<'info, System>,
+}
+
+/// Owner approves or rejects a pending payment.
+#[derive(Accounts)]
+pub struct ResolveSpend<'info> {
+    pub owner: Signer<'info>,
+    #[account(mut, has_one = owner, has_one = mint)]
+    pub policy: Account<'info, Policy>,
+    #[account(
+        mut,
+        close = requester,
+        has_one = policy,
+        has_one = requester,
+        has_one = recipient_token,
+    )]
+    pub pending: Account<'info, PendingSpend>,
+    /// CHECK: the agent that paid the pending account's rent; refunded on close.
+    #[account(mut)]
+    pub requester: UncheckedAccount<'info>,
+    pub mint: InterfaceAccount<'info, Mint>,
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = policy,
+        associated_token::token_program = token_program,
+    )]
+    pub vault: InterfaceAccount<'info, TokenAccount>,
+    #[account(mut, token::mint = mint, token::token_program = token_program)]
     pub recipient_token: InterfaceAccount<'info, TokenAccount>,
     pub token_program: Interface<'info, TokenInterface>,
 }

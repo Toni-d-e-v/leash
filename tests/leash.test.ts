@@ -13,7 +13,7 @@ import {
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import { randomBytes } from "node:crypto";
-import { getProgram, ix, policyPda, vaultAta, sha256, parseSpendEvents, decodeLeashError, coder } from "../shared/leash.js";
+import { getProgram, ix, policyPda, pendingPda, vaultAta, sha256, parseSpendEvents, decodeLeashError, coder } from "../shared/leash.js";
 
 const USDC = (n: number) => BigInt(Math.round(n * 1_000_000));
 const DAY = 86_400n;
@@ -208,5 +208,71 @@ describe("leash", () => {
     assert.equal(t.svm.getAccount(t.policy)?.lamports ?? 0, 0);
     assert.equal(t.svm.getAccount(vaultAta(t.policy, t.mint))?.lamports ?? 0, 0);
     assert.equal(t.balance(t.owner.publicKey), USDC(99.9));
+  });
+
+  describe("approval threshold", () => {
+    async function withThreshold(threshold = 0.15) {
+      const t = await withPolicy();
+      t.ok(t.send([await ix.setApprovalThreshold(program, t.owner.publicKey, t.policy, USDC(threshold))], [t.owner]));
+      const request = async (amount: bigint, recipient = t.apiA.publicKey, signer = t.agent) => {
+        const requestId = randomBytes(32);
+        const res = t.send([await ix.requestSpend(program, {
+          agent: signer.publicKey, policy: t.policy, mint: t.mint, recipient, amount, requestId, reasonHash: sha256("big one"),
+        })], [signer]);
+        return { res, requestId, pending: pendingPda(t.policy, requestId) };
+      };
+      const resolve = async (approve: boolean, pending: PublicKey, recipient = t.apiA.publicKey, signer = t.owner) =>
+        t.send([await ix.resolveSpend(program, approve, {
+          owner: signer.publicKey, policy: t.policy, mint: t.mint, pending, requester: t.agent.publicKey,
+          recipientToken: getAssociatedTokenAddressSync(t.mint, recipient),
+        })], [signer]);
+      return { ...t, request, resolve };
+    }
+
+    test("spend above the threshold needs approval; below works", async () => {
+      const t = await withThreshold();
+      t.fails(await t.spend(USDC(0.18)), "NeedsApproval");
+      t.ok(await t.spend(USDC(0.15)));
+    });
+
+    test("request → owner approves → paid, SpendEvent emitted, pending closed", async () => {
+      const t = await withThreshold();
+      const { res, requestId, pending } = await t.request(USDC(0.18));
+      t.ok(res);
+      assert.equal(t.balance(t.apiA.publicKey), 0n);
+      const approved = t.ok(await t.resolve(true, pending));
+      assert.equal(t.balance(t.apiA.publicKey), USDC(0.18));
+      const [ev] = parseSpendEvents(approved.logs());
+      assert.equal(ev.requestId, requestId.toString("hex"));
+      assert.equal(ev.amount, USDC(0.18));
+      assert.equal(t.svm.getAccount(pending)?.lamports ?? 0, 0);
+      assert.equal(t.state().spent_in_window.toString(), USDC(0.18).toString());
+    });
+
+    test("owner rejects: nothing moves, pending closed", async () => {
+      const t = await withThreshold();
+      const { pending } = await t.request(USDC(0.18));
+      t.ok(await t.resolve(false, pending));
+      assert.equal(t.balance(t.apiA.publicKey), 0n);
+      assert.equal(t.svm.getAccount(pending)?.lamports ?? 0, 0);
+    });
+
+    test("requests still obey the rules; only the owner can approve", async () => {
+      const t = await withThreshold();
+      t.fails((await t.request(USDC(0.18), t.attacker.publicKey)).res, "RecipientNotAllowed");
+      t.fails((await t.request(USDC(0.5))).res, "OverPerTxCap");
+      t.fails((await t.request(USDC(0.1))).res, "ApprovalNotRequired");
+      t.fails((await t.request(USDC(0.18), t.apiA.publicKey, t.attacker)).res, "UnauthorizedAgent");
+      const { pending } = await t.request(USDC(0.18));
+      const res = await t.resolve(true, pending, t.apiA.publicKey, t.agent);
+      assert.ok(res instanceof FailedTransactionMetadata);
+    });
+
+    test("approval re-checks the daily cap at approval time", async () => {
+      const t = await withThreshold();
+      const { pending } = await t.request(USDC(0.18));
+      for (let i = 0; i < 6; i++) t.ok(await t.spend(USDC(0.15)));
+      t.fails(await t.resolve(true, pending), "OverDailyCap");
+    });
   });
 });
