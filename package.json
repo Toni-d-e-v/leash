@@ -18,7 +18,10 @@
     "agent": "tsx agent/index.ts",
     "events": "tsx agent/events-server.ts",
     "dashboard": "npm --prefix app run dev -- -p ${DASHBOARD_PORT:-3000}",
-    "postinstall": "npm --prefix app install"
+    "postinstall": "npm --prefix app install",
+    "demo": "tsx scripts/demo.ts",
+    "check:killswitch": "tsx scripts/check-killswitch.ts",
+    "screenshots": "tsx scripts/screenshot.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
