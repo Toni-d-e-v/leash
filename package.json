@@ -28,7 +28,8 @@
     "mcp": "tsx mcp/server.ts",
     "check:mcp": "tsx scripts/check-mcp.ts",
     "set-limits": "tsx scripts/set-limits.ts",
-    "check:limits": "tsx scripts/check-limits.ts"
+    "check:limits": "tsx scripts/check-limits.ts",
+    "check:run-agent": "tsx scripts/check-run-agent.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

@@ -4,6 +4,7 @@ import type { Connection } from "@solana/web3.js";
 import { fmt, short, usdc, type DemoConfig } from "@/lib/leash";
 import type { FeedEvent, Verification } from "@/lib/hooks";
 import { Receipt } from "./Receipt";
+import { RunAgent } from "./RunAgent";
 
 const OpenReceipt = createContext<(sig: string) => void>(() => {});
 
@@ -29,7 +30,8 @@ export function Feed({ cfg, conn, events, verify, connected }: {
             {connected ? "live" : "offline"}
           </span>
         </div>
-        <div className="flex gap-2 font-mono text-xs">
+        <div className="flex items-center gap-2 font-mono text-xs">
+          {rows.length > 0 && <RunAgent />}
           <span className="rounded-full bg-spend/10 px-2.5 py-1 text-spend">{spends} paid</span>
           <span className="rounded-full bg-reject/10 px-2.5 py-1 text-reject">{rejections} blocked</span>
         </div>
@@ -42,6 +44,7 @@ export function Feed({ cfg, conn, events, verify, connected }: {
             Payments and policy rejections show up here as they land onchain. Start one with{" "}
             <code className="font-mono text-ink">npm run agent</code>.
           </p>
+          <RunAgent big />
         </div>
       ) : (
         <ol className="flex flex-col divide-y divide-line" data-testid="feed">

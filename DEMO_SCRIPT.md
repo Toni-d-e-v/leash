@@ -6,7 +6,7 @@
 3. Open **http://localhost:3000** full screen in one window and a terminal in another. Feed shows "Waiting for the agent".
 4. Optional: with `ANTHROPIC_API_KEY` set, the agent runs in LLM mode. For a guaranteed red row use `--mode scripted`, or `--mode llm --force-injection`.
 
-Backup: `docs/demo-backup.webm` is a 56s silent screen recording of the full flow (recorded with `npx tsx scripts/record-backup.ts`), and `docs/screenshots/` has stills of every state.
+Backup: `docs/demo-backup.webm` is a 46s silent screen recording of the full flow (recorded with `npx tsx scripts/record-backup.ts`), and `docs/screenshots/` has stills of every state.
 
 ---
 
@@ -20,7 +20,7 @@ Backup: `docs/demo-backup.webm` is a 56s silent screen recording of the full flo
 > "This is Leash. I've given my agent a policy on Solana: 20 cents max per payment, one dollar a day, only two allowlisted APIs, expiring in 24 hours, funded with 5 test USDC. The agent holds only a session key. The rules live in the program."
 
 ### 3. Agent works (0:45–1:30)
-**Terminal:** `npm run agent -- --mode scripted` (or `--mode llm`)
+**Click:** **Run the agent** in the empty feed (or in a terminal: `npm run agent -- --mode scripted`, or `--mode llm`)
 **Show:** dashboard. The meter ticks 0.00 → 0.05 → 0.15, and green rows appear with "hash ✓ verified onchain".
 > "I ask it to research the SOL market. Each API answers 402 Payment Required, x402 style. The agent pays through Leash and retries. Every payment carries a one-sentence reason. Its hash goes onchain, and the dashboard re-hashes the text and checks it against the event. That's a verifiable audit trail of why the AI spent money."
 
@@ -31,7 +31,7 @@ Backup: `docs/demo-backup.webm` is a 56s silent screen recording of the full flo
 
 ### 5. Kill switch (2:15–2:35)
 **Click:** the big red **Pause agent** button → status pill turns PAUSED.
-**Terminal:** `npm run agent -- --mode scripted --fast` → the first call fails with `PolicyPaused`, red row.
+**Click:** **Run agent** in the feed header (or `npm run agent -- --mode scripted --fast`) → every call fails with `PolicyPaused`, red rows.
 **Click:** **Resume agent**. Optionally **Rotate agent key** ("the old key is revoked instantly").
 > "And if anything looks off, one click pauses the agent. Every spend now fails onchain with PolicyPaused. Leaked key? Rotate it, and the old one is dead."
 
@@ -40,6 +40,10 @@ Backup: `docs/demo-backup.webm` is a 56s silent screen recording of the full flo
 **Show:** the amber **Needs your approval: 0.18 USDC to deep-research** card. **Click:** Approve. A green row appears with an "owner-approved" badge.
 > "Small payments flow automatically. Anything above 15 cents waits for me, onchain."
 
+### 5c. Optional: change the rules live
+**Click:** **Edit limits** → set the per-transaction cap to 0.04 → **Save onchain**. An amber "Owner changed the limits" row appears. **Click:** Run agent → the 0.05 market-data payment fails with `OverPerTxCap`.
+> "The rules aren't fixed at setup. I tighten them from here, and the very next payment is checked against the new limit."
+
 ### 6. Close (2:35–3:00)
 **Show:** README architecture diagram or the dashboard.
-> "Why Solana: per-request micropayments cost a fraction of a cent and confirm in about a second, and the rules are enforced by the program, not a backend the agent can argue with. Next: an SDK for any agent framework, phone approvals, and mainnet USDC. This is Leash."
+> "Why Solana: per-request micropayments cost a fraction of a cent and confirm in about a second, and the rules are enforced by the program, not a backend the agent can argue with. And it already ships as an MCP server, so Claude Desktop, Claude Code or Cursor can get a leashed wallet with one line of config. Next: phone approvals and mainnet USDC. This is Leash."

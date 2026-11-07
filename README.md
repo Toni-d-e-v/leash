@@ -103,7 +103,7 @@ cp .env.example .env        # CLUSTER=localnet by default
 npm run setup && npm run demo
 ```
 
-`npm run demo` starts a local validator with Leash preloaded, creates the keys, the test USDC mint and a fresh policy (0.20 per tx, 1.00 per day, owner approval above 0.15, three allowlisted APIs, 24h expiry, 5 USDC funded), starts the APIs, the event feed and the dashboard at **http://localhost:3000**, then runs the agent.
+`npm run demo` starts a local validator with Leash preloaded, creates the keys, the test USDC mint and a fresh policy (0.20 per tx, 1.00 per day, owner approval above 0.15, three allowlisted APIs, 24h expiry, 5 USDC funded), starts the APIs, the event feed and the dashboard at **http://localhost:3000**, then runs the agent. With `npm run demo -- --no-agent`, start it from the dashboard's **Run the agent** button instead.
 
 | Command | Does |
 |---|---|
@@ -122,6 +122,7 @@ npm run setup && npm run demo
 | `npm run mcp` | Leash MCP server on stdio (see above) |
 | `npm run check:mcp` | E2E: MCP client → paid call succeeds, attacker payment rejected onchain |
 | `npm run check:limits` | E2E: lower the per-tx cap in the dashboard → agent gets `OverPerTxCap` → raise it → spends work |
+| `npm run check:run-agent` | E2E: click **Run the agent** in the dashboard → 2 paid, 2 blocked onchain, final brief |
 | `npm run check:approval` | E2E: agent asks for 0.18 → click Approve in the dashboard → agent gets the data |
 
 The dashboard is read-only by default. Connecting the owner's wallet enables Pause/Resume, Edit limits and Approve/Reject. For local demos, where the owner is a CLI keypair, a localhost-only route signs with `.keys/owner.json` server-side (`LEASH_DEMO_SIGNER=0` disables it).
