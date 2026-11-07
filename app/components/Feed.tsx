@@ -1,17 +1,25 @@
 "use client";
-import { explorer, fmt, short, usdc, type DemoConfig } from "@/lib/leash";
+import { createContext, useCallback, useContext, useState } from "react";
+import type { Connection } from "@solana/web3.js";
+import { fmt, short, usdc, type DemoConfig } from "@/lib/leash";
 import type { FeedEvent, Verification } from "@/lib/hooks";
+import { Receipt } from "./Receipt";
+
+const OpenReceipt = createContext<(sig: string) => void>(() => {});
 
 const time = (ts: number) => new Date(ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-export function Feed({ cfg, events, verify, connected }: {
-  cfg: DemoConfig; events: FeedEvent[]; verify: Record<string, Verification>; connected: boolean;
+export function Feed({ cfg, conn, events, verify, connected }: {
+  cfg: DemoConfig; conn: Connection; events: FeedEvent[]; verify: Record<string, Verification>; connected: boolean;
 }) {
+  const [receipt, setReceipt] = useState<string | null>(null);
+  const close = useCallback(() => setReceipt(null), []);
   const rows = [...events].reverse();
   const spends = events.filter((e) => e.type === "spend").length;
   const rejections = events.filter((e) => e.type === "rejection").length;
 
   return (
+    <OpenReceipt.Provider value={setReceipt}>
     <section className="flex min-h-0 flex-col rounded-2xl border border-line bg-panel">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 sm:px-6">
         <div className="flex items-center gap-3">
@@ -41,6 +49,8 @@ export function Feed({ cfg, events, verify, connected }: {
         </ol>
       )}
     </section>
+    {receipt && <Receipt sig={receipt} cfg={cfg} conn={conn} onClose={close} />}
+    </OpenReceipt.Provider>
   );
 }
 
@@ -58,7 +68,7 @@ function Row({ ev, cfg, v }: { ev: FeedEvent; cfg: DemoConfig; v?: Verification 
           <p className="mt-1.5 text-sm leading-relaxed text-muted">“{ev.reason}”</p>
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <HashBadge v={v} />
-            {ev.signature && <TxLink href={explorer("tx", ev.signature, cfg)} sig={ev.signature} />}
+            {ev.signature && <TxLink sig={ev.signature} />}
           </div>
         </div>
       </li>
@@ -87,7 +97,7 @@ function Row({ ev, cfg, v }: { ev: FeedEvent; cfg: DemoConfig; v?: Verification 
           {ev.reason && <p className="mt-1 text-sm leading-relaxed text-muted">“{ev.reason}”</p>}
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-reject/30 px-2.5 py-1 font-mono text-[11px] text-reject">0 USDC moved</span>
-            {ev.signature && <TxLink href={explorer("tx", ev.signature, cfg)} sig={ev.signature} label="failed tx" />}
+            {ev.signature && <TxLink sig={ev.signature} label="failed tx" />}
           </div>
         </div>
       </li>
@@ -100,7 +110,7 @@ function Row({ ev, cfg, v }: { ev: FeedEvent; cfg: DemoConfig; v?: Verification 
         <Mark tone="warn" />
         <div className="flex flex-wrap items-baseline gap-x-3">
           <span className="text-sm font-medium text-warn">{label}</span>
-          {ev.signature && <TxLink href={explorer("tx", ev.signature, cfg)} sig={ev.signature} />}
+          {ev.signature && <TxLink sig={ev.signature} />}
           <span className="ml-auto font-mono text-[11px] text-dim">{time(ev.ts)}</span>
         </div>
       </li>
@@ -141,10 +151,11 @@ function HashBadge({ v }: { v?: Verification }) {
   return <span className="rounded-full bg-line px-2.5 py-1 font-mono text-[11px] text-muted">verifying hash…</span>;
 }
 
-function TxLink({ href, sig, label = "tx" }: { href: string; sig: string; label?: string }) {
+function TxLink({ sig, label = "tx" }: { sig: string; label?: string }) {
+  const open = useContext(OpenReceipt);
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-muted transition hover:border-muted hover:text-ink">
+    <button onClick={() => open(sig)} data-testid="tx-link" className="rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-muted transition hover:border-muted hover:text-ink">
       {label} {short(sig, 5)} ↗
-    </a>
+    </button>
   );
 }

@@ -51,7 +51,7 @@ export default function Home() {
             <KillSwitch cfg={cfg} policy={policy} conn={conn} />
             <PolicyCard cfg={cfg} policy={policy} />
           </div>
-          <Feed cfg={cfg} events={events} verify={verify} connected={connected} />
+          <Feed cfg={cfg} conn={conn} events={events} verify={verify} connected={connected} />
         </div>
       )}
     </main>
