@@ -6,7 +6,7 @@
 3. Open **http://localhost:3000** full screen in one window and a terminal in another. Feed shows "Waiting for the agent".
 4. Optional: with `ANTHROPIC_API_KEY` set, the agent runs in LLM mode. For a guaranteed red row use `--mode scripted`, or `--mode llm --force-injection`.
 
-Backup: `docs/demo-backup.webm` is a 46s silent screen recording of the full flow (recorded with `npx tsx scripts/record-backup.ts`), and `docs/screenshots/` has stills of every state.
+Backup: `docs/demo-backup.webm` is a 56s silent screen recording of the full flow (recorded with `npx tsx scripts/record-backup.ts`), and `docs/screenshots/` has stills of every state.
 
 ---
 

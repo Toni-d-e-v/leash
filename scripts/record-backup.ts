@@ -1,9 +1,9 @@
 // Records a backup demo video of the dashboard (Playwright screen recording, no audio):
-// fresh policy → agent run (spends tick up, injection blocked) → onchain receipt of the failed tx →
-// kill switch → PolicyPaused → resume. Needs `npm run demo -- --no-agent` running.
+// fresh policy → click Run the agent (spends tick up, injection blocked) → onchain receipt of the failed tx →
+// kill switch → PolicyPaused → resume → tighten the per-tx cap → OverPerTxCap. Needs `npm run demo -- --no-agent` running.
 //   npx tsx scripts/record-backup.ts   → docs/demo-backup.webm
 import { chromium } from "playwright";
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { renameSync, mkdirSync } from "node:fs";
 
 const url = process.env.DASHBOARD_URL ?? "http://localhost:3000";
@@ -20,10 +20,12 @@ await page.goto(url, { waitUntil: "networkidle" });
 await page.waitForSelector('[data-testid="spent"]');
 await wait(3000);
 
-// Agent run (scripted, with natural pauses between steps)
-const agent = spawn("npx", ["tsx", "agent/index.ts", "--mode", "scripted"], { stdio: "ignore" });
+// Agent run from the dashboard button (scripted mode, natural pauses between steps)
+await page.hover('[data-testid="run-agent"]');
+await wait(800);
+await page.click('[data-testid="run-agent"]');
 await page.waitForSelector('[data-testid="rejection-row"]', { timeout: 120_000 });
-await new Promise((r) => agent.on("exit", r));
+await page.waitForFunction(() => document.body.textContent?.includes("brief") && !document.querySelector('[data-testid="run-agent"]')?.textContent?.includes("running"), null, { timeout: 120_000 });
 await wait(4000);
 
 // Open the onchain receipt of the blocked 50 USDC payment (program logs show RecipientNotAllowed)
@@ -44,7 +46,21 @@ await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="re
 await wait(4000);
 await page.click('[data-testid="kill-switch"]');
 await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.textContent?.toLowerCase().includes("active"), null, { timeout: 30_000 });
-await wait(3000);
+await wait(2500);
+
+// Tighten the rules live: per-tx cap 0.04 < market-data's 0.05 → the next spend fails with OverPerTxCap
+await page.locator('[data-testid="limits"]').scrollIntoViewIfNeeded();
+await page.click('[data-testid="edit-limits"]');
+await wait(800);
+await page.fill('[data-testid="limit-perTx"]', "0.04");
+await wait(1200);
+await page.click('[data-testid="save-limits"]');
+await page.waitForFunction(() => document.querySelector('[data-testid="limits"]')?.textContent?.includes("0.04 USDC"), null, { timeout: 30_000 });
+await wait(1500);
+sh(["scripts/lib/agent-spend-once.ts", "Fresh SOL market data for the brief."]);
+await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="rejection-row"]')].some((r) => r.textContent?.includes("OverPerTxCap")), null, { timeout: 15_000 });
+await wait(4000);
 
 const video = page.video();
 await ctx.close();

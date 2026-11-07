@@ -4,9 +4,9 @@
 
 Leash is a Solana program that holds USDC in a vault and lets an AI agent spend it only within rules the program enforces: a per-transaction cap, a daily budget, a recipient allowlist, an expiry, and a kill switch. If the agent gets prompt-injected or goes haywire, the chain says no.
 
-![Leash demo: the agent pays for two APIs, a prompt-injected 50 USDC payment fails onchain, then the kill switch stops everything](docs/demo.gif)
+![Leash demo: the agent pays for two APIs, a prompt-injected 50 USDC payment fails onchain, the kill switch stops everything, and a tightened limit blocks the next spend](docs/demo.gif)
 
-<sub>46-second run at 2x speed. Full video: [docs/demo-backup.webm](docs/demo-backup.webm).</sub>
+<sub>56-second run at 2x speed: Run the agent, injection blocked onchain, receipt, kill switch, live limit change. Full video: [docs/demo-backup.webm](docs/demo-backup.webm).</sub>
 
 ## The problem
 
