@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "npx tsx --test tests/leash.test.ts",
-    "build:program": "anchor build && cp target/idl/leash.json shared/idl/leash.json && cp target/types/leash.ts shared/idl/leash-types.ts",
+    "build:program": "anchor build && cp target/idl/leash.json shared/idl/leash.json && cp target/types/leash.ts shared/idl/leash-types.ts && cp target/deploy/leash.so programs/leash/prebuilt/leash.so",
     "validator": "bash scripts/validator.sh",
     "validator:reset": "bash scripts/validator.sh --reset",
     "setup": "tsx scripts/setup.ts",

@@ -1,4 +1,5 @@
 // Leash program tests on LiteSVM (in-process SVM with clock warping).
+import { existsSync } from "node:fs";
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { LiteSVM, Clock, TransactionMetadata, FailedTransactionMetadata } from "litesvm";
@@ -18,10 +19,12 @@ import { getProgram, ix, policyPda, pendingPda, vaultAta, sha256, parseSpendEven
 const USDC = (n: number) => BigInt(Math.round(n * 1_000_000));
 const DAY = 86_400n;
 const program = getProgram();
+// Your own `anchor build` wins; otherwise the committed prebuilt binary lets the tests run with only Node.
+const SO = existsSync("target/deploy/leash.so") ? "target/deploy/leash.so" : "programs/leash/prebuilt/leash.so";
 
 function setup(opts: { expiresIn?: bigint } = {}) {
   const svm = new LiteSVM();
-  svm.addProgramFromFile(program.programId, "target/deploy/leash.so");
+  svm.addProgramFromFile(program.programId, SO);
   const [owner, agent, apiA, apiB, attacker, mintKp] = Array.from({ length: 6 }, () => Keypair.generate());
   for (const k of [owner, agent, attacker]) svm.airdrop(k.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
   const mint = mintKp.publicKey;
