@@ -22,6 +22,7 @@ In the demo, a research agent pays per request for market data and summarization
 - **Tests:** 18 tests on LiteSVM, including warping the clock for the 24h window reset, every error path, key rotation, pause-but-withdraw, close and the approval flow.
 - **Paid APIs (Express):** x402 v2 on the wire (`PAYMENT-REQUIRED`, `PAYMENT-SIGNATURE`, `PAYMENT-RESPONSE`), with a nonce per request that the agent must put into `spend`'s `request_id`. A Leash facilitator implements `/verify` (static checks + simulation + SpendEvent match) and `/settle` (submit, confirm, re-check the onchain event, replay protection).
 - **Agent (TypeScript):** Claude with tool use (`list_services`, `call_service`, `pay`, `check_budget`), plus a deterministic scripted mode so the demo never depends on model behaviour. Before every payment the agent states a one-sentence reason; `sha256(reason)` goes onchain and the full text goes to the dashboard.
+- **MCP server:** the same four tools over the Model Context Protocol, so Claude Desktop, Claude Code or Cursor gets a leashed wallet with one line of config. An E2E check drives it from a real MCP client: a paid call goes through, and a 50 USDC payment to the attacker fails onchain.
 - **Dashboard (Next.js, Tailwind, wallet adapter):** live budget meter via `onAccountChange` (polling fallback), an SSE activity feed, client-side re-hashing of every reason against the onchain event, and a big kill switch.
 
 ## Challenges we ran into
@@ -40,12 +41,12 @@ The safest place for agent guardrails is somewhere the agent has no say. Prompts
 
 ## What's next for Leash
 - Push notifications so pending approvals reach the owner's phone
-- An `@leash/agent` SDK so any agent framework can plug in
+- A hosted MCP endpoint with one session key per connected agent
 - Standard x402 `exact` compatibility via facilitator smart-wallet allowlists
 - Mainnet USDC, per-service budgets, spend analytics
 
 ## Built with
-solana, anchor, rust, typescript, node.js, express, x402, claude, anthropic-api, next.js, react, tailwindcss, solana-wallet-adapter, litesvm, playwright
+solana, anchor, rust, typescript, node.js, express, x402, claude, anthropic-api, mcp, next.js, react, tailwindcss, solana-wallet-adapter, litesvm, playwright
 
 ## Honest notes for judges
 The APIs return mock market data. Test USDC is a 6-decimal mint we created. The demo runs on a local validator (devnet deploy is scripted). x402 settlement goes through our own facilitator. Scripted mode follows the injection on purpose, so the onchain block is always visible; in LLM mode the run logs whether Claude followed it.

@@ -153,7 +153,7 @@ function Row({ ev, cfg, v }: { ev: FeedEvent; cfg: DemoConfig; v?: Verification 
     return (
       <li className="row-in flex items-center gap-3 px-5 py-2.5 sm:px-6">
         <span className="h-px flex-1 bg-line" />
-        <span className="font-mono text-[11px] text-dim">agent run · {ev.mode} · {time(ev.ts)}</span>
+        <span className="font-mono text-[11px] text-dim">{ev.mode === "mcp" ? "MCP client connected" : `agent run · ${ev.mode}`} · {time(ev.ts)}</span>
         <span className="h-px flex-1 bg-line" />
       </li>
     );

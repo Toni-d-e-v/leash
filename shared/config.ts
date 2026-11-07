@@ -1,11 +1,13 @@
 // Runtime config: cluster, RPC, keypairs in .keys/, and demo-config.json (public keys only).
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// Load .env from the repo root, so tools started from another directory (e.g. an MCP client) see it too.
+loadEnv({ path: join(ROOT, ".env"), quiet: true });
 export const KEYS_DIR = join(ROOT, ".keys");
 export const DEMO_CONFIG_PATH = join(ROOT, "demo-config.json");
 

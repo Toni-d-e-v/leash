@@ -76,6 +76,20 @@ flowchart LR
 
 **Program ID:** `5tbQ7LteAdDS9MTbLDqaZiHxiPsoY6EuXUoh3KBKN65n` ([explorer, devnet](https://explorer.solana.com/address/5tbQ7LteAdDS9MTbLDqaZiHxiPsoY6EuXUoh3KBKN65n?cluster=devnet)). The demo runs on a local validator by default. `npm run deploy:devnet` deploys the same ID to devnet.
 
+## Plug it into any agent (MCP)
+
+Leash ships as an MCP server, so Claude Desktop, Claude Code, Cursor or any other MCP client gets a leashed wallet without code changes:
+
+```bash
+claude mcp add leash -- /path/to/leash/node_modules/.bin/tsx /path/to/leash/mcp/server.ts
+```
+
+```json
+{ "mcpServers": { "leash": { "command": "/path/to/leash/node_modules/.bin/tsx", "args": ["/path/to/leash/mcp/server.ts"] } } }
+```
+
+The client gets four tools: `leash_list_services`, `leash_check_budget`, `leash_call_service` (pays x402 APIs, waits for owner approval above the threshold) and `leash_pay`. The server holds only the agent session key, so whatever the model is talked into, the program still enforces the caps, the allowlist and the kill switch. Every call shows up live on the dashboard. `npm run check:mcp` starts the server over stdio like a real client would, pays 0.05 for market data, and gets `RecipientNotAllowed` for a 50 USDC payment to the attacker.
+
 ## Run it
 
 Requirements: Rust + Solana CLI + Anchor CLI, Node 20+.
@@ -102,6 +116,8 @@ npm run setup && npm run demo
 | `npm run reset-demo` | Close the policy (refund vault + rent) and create a fresh one |
 | `npm run smoke` | x402: 402 → pay → 200, plus two replay attempts |
 | `npm run check:killswitch` | E2E: click Pause in the dashboard → `PolicyPaused` → Resume |
+| `npm run mcp` | Leash MCP server on stdio (see above) |
+| `npm run check:mcp` | E2E: MCP client → paid call succeeds, attacker payment rejected onchain |
 | `npm run check:approval` | E2E: agent asks for 0.18 → click Approve in the dashboard → agent gets the data |
 
 The dashboard is read-only by default. Connecting the owner's wallet enables Pause/Resume and Approve/Reject. For local demos, where the owner is a CLI keypair, a localhost-only route signs with `.keys/owner.json` server-side (`LEASH_DEMO_SIGNER=0` disables it).
@@ -117,6 +133,6 @@ The dashboard is read-only by default. Connecting the owner's wallet enables Pau
 ## What's next
 
 - **Approvals on your phone:** push notifications for pending payments (the approval flow itself is built).
-- **`@leash/agent` SDK:** wrap any agent framework's payment tool in a few lines.
+- **Hosted MCP server:** the same four tools over HTTP, with one session key per connected agent.
 - **Standard x402 `exact` compatibility:** get Leash added to facilitator smart-wallet allowlists so payments verify without our facilitator.
 - **Mainnet USDC**, with per-service budgets and spend analytics.
