@@ -16,3 +16,5 @@ agent/events.jsonl
 *.log
 .DS_Store
 *:Zone.Identifier
+demo-config.json
+app/public/demo-config.json
