@@ -12,7 +12,9 @@
     "reset-demo": "tsx scripts/reset-demo.ts",
     "pause": "tsx scripts/pause.ts on",
     "unpause": "tsx scripts/pause.ts off",
-    "rotate-agent": "tsx scripts/rotate-agent.ts"
+    "rotate-agent": "tsx scripts/rotate-agent.ts",
+    "services": "tsx services/server.ts",
+    "smoke": "tsx scripts/smoke-x402.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
