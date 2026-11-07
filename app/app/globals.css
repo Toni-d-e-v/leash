@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0a0b0a;
+  --color-panel: #111312;
+  --color-panel-2: #161917;
+  --color-line: #222724;
+  --color-ink: #e9ede9;
+  --color-muted: #7f8984;
+  --color-dim: #4d5551;
+  --color-spend: #b8f53d;
+  --color-reject: #ff5b4f;
+  --color-warn: #ffb547;
+  --font-display: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jbmono), ui-monospace, monospace;
+}
+
+:root { color-scheme: dark; }
+html, body { background: var(--color-bg); color: var(--color-ink); }
+body { font-family: var(--font-display); }
+
+/* subtle grid texture behind everything */
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at top, black 30%, transparent 75%);
+}
+
+@keyframes row-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.row-in { animation: row-in 360ms ease-out both; }
+
+@keyframes flash-red { 0% { box-shadow: 0 0 0 0 rgb(255 91 79 / 0.55); } 100% { box-shadow: 0 0 0 14px rgb(255 91 79 / 0); } }
+.flash-red { animation: flash-red 900ms ease-out 2; }
+
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+/* wallet adapter button, restyled */
+.wallet-adapter-button {
+  height: 36px !important; padding: 0 14px !important; border-radius: 999px !important;
+  font-family: var(--font-display) !important; font-size: 13px !important; font-weight: 500 !important;
+  background: var(--color-panel-2) !important; border: 1px solid var(--color-line) !important; color: var(--color-ink) !important;
+}
+.wallet-adapter-button:not([disabled]):hover { background: #1c201e !important; }
+.wallet-adapter-button-start-icon { width: 18px !important; height: 18px !important; margin-right: 8px !important; }

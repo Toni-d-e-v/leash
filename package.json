@@ -16,7 +16,9 @@
     "services": "tsx services/server.ts",
     "smoke": "tsx scripts/smoke-x402.ts",
     "agent": "tsx agent/index.ts",
-    "events": "tsx agent/events-server.ts"
+    "events": "tsx agent/events-server.ts",
+    "dashboard": "npm --prefix app run dev -- -p ${DASHBOARD_PORT:-3000}",
+    "postinstall": "npm --prefix app install"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
@@ -32,6 +34,7 @@
     "@types/node": "^26.6.6",
     "concurrently": "^10.0.7",
     "litesvm": "^0.2.0",
+    "playwright": "^1.65.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
