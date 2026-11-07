@@ -1,5 +1,5 @@
 // Local demo signer: lets the dashboard's kill switch act as the owner by running the same CLI
-// scripts (`npm run pause|unpause|rotate-agent`), which load .keys/owner.json server-side.
+// scripts (`npm run pause|unpause|rotate-agent|set-limits`), which load .keys/owner.json server-side.
 // The key never reaches the browser. Localhost only; disable with LEASH_DEMO_SIGNER=0.
 import { NextResponse, type NextRequest } from "next/server";
 import { execFile } from "node:child_process";
@@ -13,6 +13,7 @@ const SCRIPTS: Record<string, string[]> = {
   rotate: ["scripts/rotate-agent.ts"],
   approve: ["scripts/approve.ts"],
   reject: ["scripts/approve.ts", "--reject"],
+  limits: ["scripts/set-limits.ts"],
 };
 
 function isLocal(req: NextRequest) {
@@ -26,11 +27,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!enabled() || !isLocal(req)) return NextResponse.json({ error: "demo signer disabled" }, { status: 403 });
-  const { action, pending } = await req.json().catch(() => ({ action: "" }));
+  const { action, pending, limits } = await req.json().catch(() => ({ action: "" }));
   const base = SCRIPTS[action];
   if (!base) return NextResponse.json({ error: "unknown action" }, { status: 400 });
   if (pending !== undefined && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(pending)) return NextResponse.json({ error: "bad pending address" }, { status: 400 });
-  const args = pending ? [base[0], pending, ...base.slice(1)] : base;
+  let args = pending ? [base[0], pending, ...base.slice(1)] : base;
+  if (action === "limits") {
+    const flags: [string, unknown][] = [["--per-tx", limits?.perTx], ["--daily", limits?.daily], ["--approval", limits?.approval]];
+    if (flags.some(([, v]) => typeof v !== "number" || !Number.isFinite(v) || v < 0)) return NextResponse.json({ error: "bad limits" }, { status: 400 });
+    args = [...base, ...flags.flatMap(([f, v]) => [f, String(v)])];
+  }
   const tsx = resolve(ROOT, "node_modules/.bin/tsx");
   return new Promise<NextResponse>((done) => {
     execFile(tsx, args, { cwd: ROOT, timeout: 60_000 }, (err, stdout, stderr) => {

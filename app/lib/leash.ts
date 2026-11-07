@@ -39,6 +39,8 @@ const DISC = {
   setPaused: [91, 60, 125, 192, 176, 225, 166, 218],
   approveSpend: [248, 201, 151, 15, 28, 162, 112, 90],
   rejectSpend: [30, 241, 174, 105, 69, 228, 23, 119],
+  updateLimits: [89, 37, 137, 60, 75, 70, 48, 194],
+  setApprovalThreshold: [136, 178, 240, 249, 212, 42, 150, 63],
 };
 
 const eq = (a: Uint8Array, b: number[]) => b.every((v, i) => a[i] === v);
@@ -102,6 +104,30 @@ export function setPausedIx(programId: string, owner: PublicKey, policy: PublicK
     ],
     data: Buffer.from([...DISC.setPaused, paused ? 1 : 0]),
   });
+}
+
+/** Owner-only instructions that change the caps (expiry kept) and the approval threshold, in base units. */
+export function setLimitsIxs(
+  programId: string, owner: PublicKey, policy: PublicKey,
+  l: { perTxCap: bigint; dailyCap: bigint; expiresAt: number; approvalThreshold: bigint },
+) {
+  const keys = [
+    { pubkey: owner, isSigner: true, isWritable: false },
+    { pubkey: policy, isSigner: false, isWritable: true },
+  ];
+  const limits = Buffer.alloc(32);
+  limits.set(DISC.updateLimits, 0);
+  limits.writeBigUInt64LE(l.perTxCap, 8);
+  limits.writeBigUInt64LE(l.dailyCap, 16);
+  limits.writeBigInt64LE(BigInt(l.expiresAt), 24);
+  const threshold = Buffer.alloc(16);
+  threshold.set(DISC.setApprovalThreshold, 0);
+  threshold.writeBigUInt64LE(l.approvalThreshold, 8);
+  const program = new PublicKey(programId);
+  return [
+    new TransactionInstruction({ programId: program, keys, data: limits }),
+    new TransactionInstruction({ programId: program, keys, data: threshold }),
+  ];
 }
 
 export const usdc = (base: bigint | number) => Number(base) / 1_000_000;

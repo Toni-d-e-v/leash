@@ -135,13 +135,14 @@ function Row({ ev, cfg, v }: { ev: FeedEvent; cfg: DemoConfig; v?: Verification 
   if (ev.type === "owner") {
     const label = {
       paused: "Owner paused the agent", unpaused: "Owner resumed the agent", rotated: "Owner rotated the agent key",
-      approved: "Owner approved the payment", rejected: "Owner rejected the payment",
+      approved: "Owner approved the payment", rejected: "Owner rejected the payment", limits: "Owner changed the limits",
     }[ev.action as string] ?? `Owner: ${ev.action}`;
     return (
       <li className="row-in grid grid-cols-[auto_1fr] gap-x-4 px-5 py-3.5 sm:px-6">
         <Mark tone="warn" />
         <div className="flex flex-wrap items-baseline gap-x-3">
           <span className="text-sm font-medium text-warn">{label}</span>
+          {ev.detail && <span className="font-mono text-[12px] text-muted">{ev.detail}</span>}
           {ev.signature && <TxLink sig={ev.signature} />}
           <span className="ml-auto font-mono text-[11px] text-dim">{time(ev.ts)}</span>
         </div>

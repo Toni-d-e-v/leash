@@ -114,15 +114,17 @@ npm run setup && npm run demo
 | `npm run agent -- --mode scripted --approval` | Also buys a 0.18 report: the dashboard shows **Needs your approval**, and the agent waits |
 | `npm run approve [-- --reject]` | Approve or reject the latest pending payment from the CLI |
 | `npm run pause` / `npm run unpause` | Kill switch from the CLI (the dashboard button does the same) |
+| `npm run set-limits -- --per-tx 0.10 --daily 0.50 --approval 0.08` | Change the caps and approval threshold (the dashboard's **Edit limits** does the same) |
 | `npm run rotate-agent` | New agent key; the old one is revoked |
 | `npm run reset-demo` | Close the policy (refund vault + rent) and create a fresh one |
 | `npm run smoke` | x402: 402 → pay → 200, plus two replay attempts |
 | `npm run check:killswitch` | E2E: click Pause in the dashboard → `PolicyPaused` → Resume |
 | `npm run mcp` | Leash MCP server on stdio (see above) |
 | `npm run check:mcp` | E2E: MCP client → paid call succeeds, attacker payment rejected onchain |
+| `npm run check:limits` | E2E: lower the per-tx cap in the dashboard → agent gets `OverPerTxCap` → raise it → spends work |
 | `npm run check:approval` | E2E: agent asks for 0.18 → click Approve in the dashboard → agent gets the data |
 
-The dashboard is read-only by default. Connecting the owner's wallet enables Pause/Resume and Approve/Reject. For local demos, where the owner is a CLI keypair, a localhost-only route signs with `.keys/owner.json` server-side (`LEASH_DEMO_SIGNER=0` disables it).
+The dashboard is read-only by default. Connecting the owner's wallet enables Pause/Resume, Edit limits and Approve/Reject. For local demos, where the owner is a CLI keypair, a localhost-only route signs with `.keys/owner.json` server-side (`LEASH_DEMO_SIGNER=0` disables it).
 
 ## What's mocked (honest list)
 

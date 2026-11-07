@@ -26,7 +26,9 @@
     "approve": "tsx scripts/approve.ts",
     "check:approval": "tsx scripts/check-approval.ts",
     "mcp": "tsx mcp/server.ts",
-    "check:mcp": "tsx scripts/check-mcp.ts"
+    "check:mcp": "tsx scripts/check-mcp.ts",
+    "set-limits": "tsx scripts/set-limits.ts",
+    "check:limits": "tsx scripts/check-limits.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
