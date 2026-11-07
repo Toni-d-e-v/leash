@@ -1,7 +1,7 @@
 // One-command demo: validator (localnet) → setup → fresh policy → services + event feed + dashboard → agent.
 //   npm run demo              keeps the servers running after the agent finishes (Ctrl-C to stop)
 //   npm run demo -- --once    exits after the agent run (used for end-to-end checks)
-//   flags: --mode llm|scripted, --force-injection, --delay <seconds before the agent starts>
+//   flags: --mode llm|scripted, --force-injection, --delay <seconds before the agent starts>, --no-agent
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { parseArgs } from "node:util";
 import { CLUSTER, RPC_URL, SERVICES_PORT, EVENTS_PORT, ROOT } from "../shared/config.js";
@@ -9,6 +9,7 @@ import { CLUSTER, RPC_URL, SERVICES_PORT, EVENTS_PORT, ROOT } from "../shared/co
 const { values } = parseArgs({
   options: {
     once: { type: "boolean", default: false },
+    "no-agent": { type: "boolean", default: false },
     mode: { type: "string" },
     "force-injection": { type: "boolean", default: false },
     delay: { type: "string", default: process.env.DEMO_AGENT_DELAY ?? "6" },
@@ -74,6 +75,10 @@ async function main() {
   await Promise.all([waitFor("services", () => up(services.url)), waitFor("events", () => up(events.url)), waitFor("dashboard", () => up(dashUrl), 120)]);
   await fetch(`${dashUrl}/`).catch(() => {}); // warm up the first compile
 
+  if (values["no-agent"]) {
+    console.log(`\n\x1b[1m  Dashboard → ${dashUrl}\x1b[0m\n  Run the agent yourself: npm run agent -- --mode scripted   (Ctrl-C here stops the servers)\n`);
+    return;
+  }
   console.log(`\n\x1b[1m  Dashboard → ${dashUrl}\x1b[0m\n  Agent starts in ${values.delay}s…\n`);
   await new Promise((r) => setTimeout(r, Number(values.delay) * 1000));
 

@@ -21,7 +21,8 @@
     "postinstall": "npm --prefix app install",
     "demo": "tsx scripts/demo.ts",
     "check:killswitch": "tsx scripts/check-killswitch.ts",
-    "screenshots": "tsx scripts/screenshot.ts"
+    "screenshots": "tsx scripts/screenshot.ts",
+    "deploy:devnet": "bash scripts/deploy-devnet.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
