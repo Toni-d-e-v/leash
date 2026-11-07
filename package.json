@@ -3,7 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npx tsx --test tests/leash.test.ts"
+    "test": "npx tsx --test tests/leash.test.ts",
+    "build:program": "anchor build && cp target/idl/leash.json shared/idl/leash.json && cp target/types/leash.ts shared/idl/leash-types.ts",
+    "validator": "bash scripts/validator.sh",
+    "validator:reset": "bash scripts/validator.sh --reset",
+    "setup": "tsx scripts/setup.ts",
+    "create-policy": "tsx scripts/create-policy.ts",
+    "reset-demo": "tsx scripts/reset-demo.ts",
+    "pause": "tsx scripts/pause.ts on",
+    "unpause": "tsx scripts/pause.ts off",
+    "rotate-agent": "tsx scripts/rotate-agent.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
