@@ -94,11 +94,11 @@ The client gets four tools: `leash_list_services`, `leash_check_budget`, `leash_
 
 ## Run it
 
-Requirements: Rust + Solana CLI + Anchor CLI, Node 20+.
+Requirements: Node 20+ and the Solana CLI (for `solana-test-validator`). Rust + Anchor are only needed to rebuild the program: a prebuilt `programs/leash/prebuilt/leash.so` is committed and used when `target/deploy/leash.so` doesn't exist, so `npm install && npm test` works with Node alone.
 
 ```bash
 npm install                 # also installs the dashboard
-anchor build                # builds target/deploy/leash.so
+anchor build                # optional: rebuild target/deploy/leash.so from source
 cp .env.example .env        # CLUSTER=localnet by default
 npm run setup && npm run demo
 ```
