@@ -8,6 +8,124 @@
   },
   "instructions": [
     {
+      "name": "approve_spend",
+      "docs": [
+        "Owner approves a pending payment: rules are re-checked (the allowlist or",
+        "budget may have changed), then the vault pays and a `SpendEvent` is emitted."
+      ],
+      "discriminator": [
+        248,
+        201,
+        151,
+        15,
+        28,
+        162,
+        112,
+        90
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "policy",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "pending",
+          "writable": true
+        },
+        {
+          "name": "requester",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "policy"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "recipient_token",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "close_policy",
       "docs": [
         "Owner drains the vault, closes it and the policy, and gets the rent back."
@@ -364,6 +482,212 @@
       ]
     },
     {
+      "name": "reject_spend",
+      "docs": [
+        "Owner declines a pending payment. Nothing moves; rent goes back to the agent."
+      ],
+      "discriminator": [
+        30,
+        241,
+        174,
+        105,
+        69,
+        228,
+        23,
+        119
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "policy",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "pending",
+          "writable": true
+        },
+        {
+          "name": "requester",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "policy"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "recipient_token",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "request_spend",
+      "docs": [
+        "Agent asks the owner to approve a payment above `approval_threshold`.",
+        "The same rules as `spend` apply; nothing moves until `approve_spend`."
+      ],
+      "discriminator": [
+        127,
+        12,
+        23,
+        75,
+        137,
+        178,
+        148,
+        71
+      ],
+      "accounts": [
+        {
+          "name": "agent",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "policy"
+        },
+        {
+          "name": "pending",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "policy"
+              },
+              {
+                "kind": "arg",
+                "path": "request_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient_token",
+          "docs": [
+            "Destination token account; checked against the allowlist in `request_spend`."
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "request_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "reason_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "rotate_agent",
       "docs": [
         "Owner replaces the agent key, instantly revoking the old one."
@@ -432,6 +756,41 @@
           "type": {
             "vec": "pubkey"
           }
+        }
+      ]
+    },
+    {
+      "name": "set_approval_threshold",
+      "docs": [
+        "Owner sets the amount above which a payment needs approval (0 = never)."
+      ],
+      "discriminator": [
+        136,
+        178,
+        240,
+        249,
+        212,
+        42,
+        150,
+        63
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "policy",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "threshold",
+          "type": "u64"
         }
       ]
     },
@@ -748,6 +1107,19 @@
   ],
   "accounts": [
     {
+      "name": "PendingSpend",
+      "discriminator": [
+        193,
+        205,
+        85,
+        66,
+        25,
+        3,
+        67,
+        134
+      ]
+    },
+    {
       "name": "Policy",
       "discriminator": [
         222,
@@ -762,6 +1134,32 @@
     }
   ],
   "events": [
+    {
+      "name": "ApprovalRejected",
+      "discriminator": [
+        113,
+        40,
+        207,
+        170,
+        194,
+        195,
+        17,
+        217
+      ]
+    },
+    {
+      "name": "ApprovalRequested",
+      "discriminator": [
+        114,
+        39,
+        81,
+        245,
+        166,
+        50,
+        236,
+        254
+      ]
+    },
     {
       "name": "SpendEvent",
       "discriminator": [
@@ -826,9 +1224,147 @@
       "code": 6009,
       "name": "MathOverflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6010,
+      "name": "NeedsApproval",
+      "msg": "Amount is above the approval threshold: use request_spend"
+    },
+    {
+      "code": 6011,
+      "name": "ApprovalNotRequired",
+      "msg": "Amount is within the approval threshold: use spend"
     }
   ],
   "types": [
+    {
+      "name": "ApprovalRejected",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "type": "pubkey"
+          },
+          {
+            "name": "pending",
+            "type": "pubkey"
+          },
+          {
+            "name": "request_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ApprovalRequested",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "type": "pubkey"
+          },
+          {
+            "name": "pending",
+            "type": "pubkey"
+          },
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "request_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reason_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PendingSpend",
+      "docs": [
+        "A payment waiting for the owner. PDA seeds: `[\"pending\", policy, request_id]`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "type": "pubkey"
+          },
+          {
+            "name": "requester",
+            "type": "pubkey"
+          },
+          {
+            "name": "recipient_token",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "request_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reason_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
     {
       "name": "Policy",
       "type": {
@@ -887,6 +1423,13 @@
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "approval_threshold",
+            "docs": [
+              "Payments above this need the owner's approval (0 = never)."
+            ],
+            "type": "u64"
           }
         ]
       }

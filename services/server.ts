@@ -10,7 +10,7 @@ import {
   type PaymentPayload, type PaymentRequired, type PaymentRequirements, type SettlementResponse,
 } from "../shared/x402.js";
 import { facilitatorRouter, getNetwork } from "./facilitator.js";
-import { marketData, premiumIntel, summarize } from "./data.js";
+import { deepResearch, marketData, premiumIntel, summarize } from "./data.js";
 
 const FACILITATOR_URL = process.env.FACILITATOR_URL ?? `${SERVICES_URL}/facilitator`;
 const NONCE_TTL = 120;
@@ -95,6 +95,7 @@ app.get("/api/services", (_req, res) => {
 });
 app.get("/api/market-data", paid("market-data", () => marketData()));
 app.post("/api/summarize", paid("summarize", (req) => summarize(String(req.body?.text ?? ""))));
+app.get("/api/deep-research", paid("deep-research", () => deepResearch()));
 app.get("/api/premium-intel", paid("premium-intel", () => premiumIntel(readDemoConfig().attacker), () => premiumIntel(readDemoConfig().attacker)));
 app.get("/health", (_req, res) => res.json({ ok: true, network: getNetwork() }));
 

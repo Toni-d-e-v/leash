@@ -40,6 +40,10 @@ export function policyPda(owner: PublicKey, policyId: bigint | number): PublicKe
   return PublicKey.findProgramAddressSync([Buffer.from("policy"), owner.toBuffer(), id], PROGRAM_ID)[0];
 }
 
+export function pendingPda(policy: PublicKey, requestId: Buffer): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from("pending"), policy.toBuffer(), requestId], PROGRAM_ID)[0];
+}
+
 export function vaultAta(policy: PublicKey, mint: PublicKey, tokenProgram = TOKEN_PROGRAM_ID): PublicKey {
   return getAssociatedTokenAddressSync(mint, policy, true, tokenProgram);
 }
@@ -113,6 +117,42 @@ export const ix = {
         tokenProgram,
       })
       .instruction();
+  },
+
+  /** Agent asks the owner to approve a payment above the approval threshold. */
+  requestSpend(
+    program: Program<Leash>,
+    a: { agent: PublicKey; policy: PublicKey; mint: PublicKey; recipient: PublicKey; amount: bigint; requestId: Buffer; reasonHash: Buffer },
+    tokenProgram = TOKEN_PROGRAM_ID,
+  ) {
+    return program.methods
+      .requestSpend(new BN(a.amount.toString()), [...a.requestId], [...a.reasonHash])
+      .accountsStrict({
+        agent: a.agent,
+        policy: a.policy,
+        pending: pendingPda(a.policy, a.requestId),
+        recipientToken: getAssociatedTokenAddressSync(a.mint, a.recipient, true, tokenProgram),
+        systemProgram: new PublicKey("11111111111111111111111111111111"),
+      })
+      .instruction();
+  },
+
+  /** Owner approves (`approve`) or rejects a pending payment. */
+  resolveSpend(
+    program: Program<Leash>,
+    approve: boolean,
+    a: { owner: PublicKey; policy: PublicKey; mint: PublicKey; pending: PublicKey; requester: PublicKey; recipientToken: PublicKey },
+    tokenProgram = TOKEN_PROGRAM_ID,
+  ) {
+    const accounts = {
+      owner: a.owner, policy: a.policy, pending: a.pending, requester: a.requester, mint: a.mint,
+      vault: vaultAta(a.policy, a.mint, tokenProgram), recipientToken: a.recipientToken, tokenProgram,
+    };
+    return (approve ? program.methods.approveSpend() : program.methods.rejectSpend()).accountsStrict(accounts).instruction();
+  },
+
+  setApprovalThreshold(program: Program<Leash>, owner: PublicKey, policy: PublicKey, threshold: bigint) {
+    return program.methods.setApprovalThreshold(new BN(threshold.toString())).accountsStrict({ owner, policy }).instruction();
   },
 
   setPaused(program: Program<Leash>, owner: PublicKey, policy: PublicKey, paused: boolean) {

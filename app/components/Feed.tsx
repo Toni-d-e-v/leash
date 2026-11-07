@@ -68,6 +68,7 @@ function Row({ ev, cfg, v }: { ev: FeedEvent; cfg: DemoConfig; v?: Verification 
           <p className="mt-1.5 text-sm leading-relaxed text-muted">“{ev.reason}”</p>
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <HashBadge v={v} />
+            {ev.approved && <span className="rounded-full bg-warn/10 px-2.5 py-1 font-mono text-[11px] text-warn">owner-approved</span>}
             {ev.signature && <TxLink sig={ev.signature} />}
           </div>
         </div>
@@ -103,8 +104,39 @@ function Row({ ev, cfg, v }: { ev: FeedEvent; cfg: DemoConfig; v?: Verification 
       </li>
     );
   }
+  if (ev.type === "approval") {
+    if (ev.status === "timeout") {
+      return (
+        <li className="row-in grid grid-cols-[auto_1fr] gap-x-4 px-5 py-3.5 sm:px-6">
+          <Mark tone="warn" />
+          <span className="text-sm text-warn">Approval request expired without an answer</span>
+        </li>
+      );
+    }
+    if (ev.status !== "requested") return null; // the owner row shows the decision
+    return (
+      <li className="row-in grid grid-cols-[auto_1fr] gap-x-4 bg-warn/[0.05] px-5 py-4 sm:px-6" data-testid="approval-row">
+        <Mark tone="warn" />
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="font-mono text-lg font-semibold text-warn">{fmt(usdc(BigInt(ev.amount)))} USDC</span>
+            <span className="text-sm text-ink">{ev.service} · asked the owner</span>
+            <span className="ml-auto font-mono text-[11px] text-dim">{time(ev.ts)}</span>
+          </div>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted">“{ev.reason}”</p>
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-warn/30 px-2.5 py-1 font-mono text-[11px] text-warn">above approval threshold</span>
+            {ev.signature && <TxLink sig={ev.signature} label="request tx" />}
+          </div>
+        </div>
+      </li>
+    );
+  }
   if (ev.type === "owner") {
-    const label = ev.action === "paused" ? "Owner paused the agent" : ev.action === "unpaused" ? "Owner resumed the agent" : "Owner rotated the agent key";
+    const label = {
+      paused: "Owner paused the agent", unpaused: "Owner resumed the agent", rotated: "Owner rotated the agent key",
+      approved: "Owner approved the payment", rejected: "Owner rejected the payment",
+    }[ev.action as string] ?? `Owner: ${ev.action}`;
     return (
       <li className="row-in grid grid-cols-[auto_1fr] gap-x-4 px-5 py-3.5 sm:px-6">
         <Mark tone="warn" />

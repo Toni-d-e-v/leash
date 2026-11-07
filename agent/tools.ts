@@ -6,7 +6,8 @@ import {
   connection, loadKeypair, readDemoConfig, explorerTx, fromBase, toBase, pk, SERVICES_URL, EVENTS_URL,
 } from "../shared/config.js";
 import { getProgram, sha256, decodeLeashError } from "../shared/leash.js";
-import { buildSpendTx, httpCall, paymentPayload, sendSpend, sendSpendForReceipt } from "../shared/payer.js";
+import { buildSpendTx, httpCall, paymentPayload, sendRequestSpend, sendSpend, sendSpendForReceipt, waitForResolution } from "../shared/payer.js";
+import type { PaymentRequired, PaymentRequirements } from "../shared/x402.js";
 
 const conn = connection();
 const program = getProgram(conn);
@@ -118,6 +119,7 @@ export async function callService(a: CallArgs) {
   const sim = await conn.simulateTransaction(tx, { sigVerify: true });
   if (sim.value.err) {
     const error = decodeLeashError(sim.value.logs ?? []) ?? JSON.stringify(sim.value.err);
+    if (error === "NeedsApproval") return approvalFlow(a, first.required, r, req, url, method);
     const out = await reject(error, req, a.name, { recipient: r.payTo, amount_usdc: fromBase(BigInt(r.amount)), reason: a.reason, service: a.name });
     return preview ? { ...out, preview_returned_by_service: preview } : out;
   }
@@ -133,4 +135,37 @@ export async function callService(a: CallArgs) {
     signature: sig, explorer: explorerTx(sig),
   });
   return { ok: true, paid_usdc: fromBase(BigInt(r.amount)), explorer: explorerTx(sig), data: second.body.data };
+}
+
+/**
+ * Payment above the approval threshold: create a PendingSpend, wait for the owner to approve or
+ * reject it on the dashboard, then pay the API with the approved transaction's signature.
+ */
+async function approvalFlow(
+  a: CallArgs, required: PaymentRequired, r: PaymentRequirements, req: Parameters<typeof sendSpend>[2],
+  url: string, method: "GET" | "POST",
+) {
+  const asked = await sendRequestSpend(conn, agentKey, req);
+  if (!asked.ok) return reject(asked.error, req, a.name, { recipient: r.payTo, amount_usdc: fromBase(req.amount), reason: a.reason, service: a.name });
+  await emit({
+    type: "approval", status: "requested", service: a.name, recipient: r.payTo, amount: req.amount.toString(),
+    reason: a.reason, requestId: r.extra!.nonce, pending: asked.pending, requester: agentKey.publicKey.toBase58(),
+    signature: asked.signature,
+  });
+  const res = await waitForResolution(conn, asked.pending!, req.requestId);
+  if (res.status !== "approved") {
+    await emit({ type: "approval", status: res.status, pending: asked.pending, requestId: r.extra!.nonce, signature: (res as any).signature });
+    return { ok: false, error: res.status === "rejected" ? "Payment rejected by the owner" : "Owner did not respond in time" };
+  }
+  await emit({ type: "approval", status: "approved", pending: asked.pending, requestId: r.extra!.nonce, signature: res.signature });
+  const settled = await httpCall(url, method, a.params, {
+    x402Version: required.x402Version, resource: required.resource, accepted: r, payload: { signature: res.signature },
+  });
+  if (settled.kind !== "ok") return { ok: false, error: `Service did not accept the approved payment: ${JSON.stringify((settled as any).body)}` };
+  await emit({
+    type: "spend", service: a.name, recipient: r.payTo, amount: r.amount, reason: a.reason, approved: true,
+    reasonHash: sha256(a.reason).toString("hex"), requestId: r.extra!.nonce,
+    signature: res.signature, explorer: explorerTx(res.signature),
+  });
+  return { ok: true, paid_usdc: fromBase(BigInt(r.amount)), approved_by_owner: true, explorer: explorerTx(res.signature), data: settled.body.data };
 }

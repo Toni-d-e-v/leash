@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Budget } from "@/components/Budget";
 import { KillSwitch } from "@/components/KillSwitch";
 import { Feed } from "@/components/Feed";
+import { Approvals } from "@/components/Approvals";
 import { useConnection, useDemoConfig, useEvents, useNow, usePolicy, useReasonVerification } from "@/lib/hooks";
 import { explorer, fmt, short, type DemoConfig, type PolicyState } from "@/lib/leash";
 
@@ -48,6 +49,7 @@ export default function Home() {
             <div className={flash ? "flash-red rounded-2xl" : ""}>
               <Budget policy={policy} vault={vault} now={now} />
             </div>
+            <Approvals cfg={cfg} policy={policy} conn={conn} events={events} />
             <KillSwitch cfg={cfg} policy={policy} conn={conn} />
             <PolicyCard cfg={cfg} policy={policy} />
           </div>
@@ -98,6 +100,7 @@ function PolicyCard({ cfg, policy }: { cfg: DemoConfig; policy: PolicyState }) {
         <Line k="Agent key"><Addr cfg={cfg} a={policy.agent} /></Line>
         <Line k="Owner"><Addr cfg={cfg} a={policy.owner} /></Line>
         <Line k="Expires">{expires}</Line>
+        <Line k="Owner approval">{policy.approvalThreshold > BigInt(0) ? `above ${fmt(Number(policy.approvalThreshold) / 1e6)} USDC` : "never"}</Line>
         <Line k="Allowlist">
           <ul className="flex flex-wrap justify-end gap-1.5">
             {policy.allowlist.map((a) => (

@@ -12,13 +12,14 @@
 Agents are starting to pay for things on their own: APIs, data, compute. The options today are bad: hand the agent a credit card, or a hot wallet with everything in it. Prompt injection is real and unsolved, so either one is a single malicious web page away from being drained. We wanted guardrails the model can't talk its way around.
 
 ## What it does
-Leash is a Solana program that holds USDC in a vault and lets an AI agent spend it only within rules the program enforces: a per-transaction cap, a rolling 24h budget, a recipient allowlist, an expiry and a kill switch. The agent holds a session key that can only call `spend`. The owner can pause, rotate the agent key, change limits or withdraw at any time.
+Leash is a Solana program that holds USDC in a vault and lets an AI agent spend it only within rules the program enforces: a per-transaction cap, a rolling 24h budget, a recipient allowlist, an expiry and a kill switch. The agent holds a session key that can only call `spend`. Payments above an approval threshold become a pending request onchain that the owner approves or rejects from the dashboard. The owner can pause, rotate the agent key, change limits or withdraw at any time.
 
 In the demo, a research agent pays per request for market data and summarization via x402-style `402 Payment Required` APIs. Each payment shows up live on a dashboard with the agent's stated reason and a "hash verified onchain" badge. Then a third API's response carries a prompt injection telling the agent to send 50 USDC to an attacker. The agent tries, and the transaction fails onchain with `RecipientNotAllowed`. Zero USDC moves. One click on the kill switch and every further spend fails with `PolicyPaused`.
 
 ## How we built it
 - **Program (Rust, Anchor 0.31):** a `Policy` PDA plus a vault ATA owned by the PDA. `spend` checks the rules in a fixed order with a distinct error for each, then calls `transfer_checked` (Token interface, so Token-2022 works too) with PDA signer seeds and emits a `SpendEvent` with `request_id` and `reason_hash`. Checked math throughout, allowlist capped at 8.
-- **Tests:** 13 tests on LiteSVM, including warping the clock for the 24h window reset, every error path, key rotation, pause-but-withdraw and close.
+- **Human approval:** above `approval_threshold`, the agent calls `request_spend` (same rule checks, creates a `PendingSpend` PDA). The owner's `approve_spend` re-checks the rules, pays and emits the `SpendEvent`; the x402 facilitator then accepts that settled signature as payment for the original request.
+- **Tests:** 18 tests on LiteSVM, including warping the clock for the 24h window reset, every error path, key rotation, pause-but-withdraw, close and the approval flow.
 - **Paid APIs (Express):** x402 v2 on the wire (`PAYMENT-REQUIRED`, `PAYMENT-SIGNATURE`, `PAYMENT-RESPONSE`), with a nonce per request that the agent must put into `spend`'s `request_id`. A Leash facilitator implements `/verify` (static checks + simulation + SpendEvent match) and `/settle` (submit, confirm, re-check the onchain event, replay protection).
 - **Agent (TypeScript):** Claude with tool use (`list_services`, `call_service`, `pay`, `check_budget`), plus a deterministic scripted mode so the demo never depends on model behaviour. Before every payment the agent states a one-sentence reason; `sha256(reason)` goes onchain and the full text goes to the dashboard.
 - **Dashboard (Next.js, Tailwind, wallet adapter):** live budget meter via `onAccountChange` (polling fallback), an SSE activity feed, client-side re-hashing of every reason against the onchain event, and a big kill switch.
@@ -38,7 +39,7 @@ In the demo, a research agent pays per request for market data and summarization
 The safest place for agent guardrails is somewhere the agent has no say. Prompts and backends can be argued with; a program's `require!` can't. Solana's fees and confirmation times make per-request payments practical, so you can put every payment through those checks.
 
 ## What's next for Leash
-- Human approval above a threshold (a `PendingSpend` PDA the owner approves from their phone)
+- Push notifications so pending approvals reach the owner's phone
 - An `@leash/agent` SDK so any agent framework can plug in
 - Standard x402 `exact` compatibility via facilitator smart-wallet allowlists
 - Mainnet USDC, per-service budgets, spend analytics

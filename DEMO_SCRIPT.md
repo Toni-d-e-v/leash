@@ -35,6 +35,11 @@ Backup: `docs/demo-backup.webm` is a 56s silent screen recording of the full flo
 **Click:** **Resume agent**. Optionally **Rotate agent key** ("the old key is revoked instantly").
 > "And if anything looks off, one click pauses the agent. Every spend now fails onchain with PolicyPaused. Leaked key? Rotate it, and the old one is dead."
 
+### 5b. Optional, if you have 20s spare: human approval
+**Terminal:** `npm run agent -- --mode scripted --fast --approval`
+**Show:** the amber **Needs your approval: 0.18 USDC to deep-research** card. **Click:** Approve. A green row appears with an "owner-approved" badge.
+> "Small payments flow automatically. Anything above 15 cents waits for me, onchain."
+
 ### 6. Close (2:35–3:00)
 **Show:** README architecture diagram or the dashboard.
-> "Why Solana: per-request micropayments cost a fraction of a cent and confirm in about a second, and the rules are enforced by the program, not a backend the agent can argue with. Next: human approval above a threshold, an SDK for any agent framework, and mainnet USDC. This is Leash."
+> "Why Solana: per-request micropayments cost a fraction of a cent and confirm in about a second, and the rules are enforced by the program, not a backend the agent can argue with. Next: an SDK for any agent framework, phone approvals, and mainnet USDC. This is Leash."

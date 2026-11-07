@@ -14,6 +14,124 @@ export type Leash = {
   },
   "instructions": [
     {
+      "name": "approveSpend",
+      "docs": [
+        "Owner approves a pending payment: rules are re-checked (the allowlist or",
+        "budget may have changed), then the vault pays and a `SpendEvent` is emitted."
+      ],
+      "discriminator": [
+        248,
+        201,
+        151,
+        15,
+        28,
+        162,
+        112,
+        90
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "policy",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "pending",
+          "writable": true
+        },
+        {
+          "name": "requester",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "policy"
+              },
+              {
+                "kind": "account",
+                "path": "tokenProgram"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "recipientToken",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "tokenProgram"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "closePolicy",
       "docs": [
         "Owner drains the vault, closes it and the policy, and gets the rent back."
@@ -370,6 +488,212 @@ export type Leash = {
       ]
     },
     {
+      "name": "rejectSpend",
+      "docs": [
+        "Owner declines a pending payment. Nothing moves; rent goes back to the agent."
+      ],
+      "discriminator": [
+        30,
+        241,
+        174,
+        105,
+        69,
+        228,
+        23,
+        119
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "policy",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "pending",
+          "writable": true
+        },
+        {
+          "name": "requester",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "policy"
+              },
+              {
+                "kind": "account",
+                "path": "tokenProgram"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "recipientToken",
+          "writable": true,
+          "relations": [
+            "pending"
+          ]
+        },
+        {
+          "name": "tokenProgram"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "requestSpend",
+      "docs": [
+        "Agent asks the owner to approve a payment above `approval_threshold`.",
+        "The same rules as `spend` apply; nothing moves until `approve_spend`."
+      ],
+      "discriminator": [
+        127,
+        12,
+        23,
+        75,
+        137,
+        178,
+        148,
+        71
+      ],
+      "accounts": [
+        {
+          "name": "agent",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "policy"
+        },
+        {
+          "name": "pending",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "policy"
+              },
+              {
+                "kind": "arg",
+                "path": "requestId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipientToken",
+          "docs": [
+            "Destination token account; checked against the allowlist in `request_spend`."
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "requestId",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "reasonHash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "rotateAgent",
       "docs": [
         "Owner replaces the agent key, instantly revoking the old one."
@@ -438,6 +762,41 @@ export type Leash = {
           "type": {
             "vec": "pubkey"
           }
+        }
+      ]
+    },
+    {
+      "name": "setApprovalThreshold",
+      "docs": [
+        "Owner sets the amount above which a payment needs approval (0 = never)."
+      ],
+      "discriminator": [
+        136,
+        178,
+        240,
+        249,
+        212,
+        42,
+        150,
+        63
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "policy",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "threshold",
+          "type": "u64"
         }
       ]
     },
@@ -754,6 +1113,19 @@ export type Leash = {
   ],
   "accounts": [
     {
+      "name": "pendingSpend",
+      "discriminator": [
+        193,
+        205,
+        85,
+        66,
+        25,
+        3,
+        67,
+        134
+      ]
+    },
+    {
       "name": "policy",
       "discriminator": [
         222,
@@ -768,6 +1140,32 @@ export type Leash = {
     }
   ],
   "events": [
+    {
+      "name": "approvalRejected",
+      "discriminator": [
+        113,
+        40,
+        207,
+        170,
+        194,
+        195,
+        17,
+        217
+      ]
+    },
+    {
+      "name": "approvalRequested",
+      "discriminator": [
+        114,
+        39,
+        81,
+        245,
+        166,
+        50,
+        236,
+        254
+      ]
+    },
     {
       "name": "spendEvent",
       "discriminator": [
@@ -832,9 +1230,147 @@ export type Leash = {
       "code": 6009,
       "name": "mathOverflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6010,
+      "name": "needsApproval",
+      "msg": "Amount is above the approval threshold: use request_spend"
+    },
+    {
+      "code": 6011,
+      "name": "approvalNotRequired",
+      "msg": "Amount is within the approval threshold: use spend"
     }
   ],
   "types": [
+    {
+      "name": "approvalRejected",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "type": "pubkey"
+          },
+          {
+            "name": "pending",
+            "type": "pubkey"
+          },
+          {
+            "name": "requestId",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "approvalRequested",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "type": "pubkey"
+          },
+          {
+            "name": "pending",
+            "type": "pubkey"
+          },
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "requestId",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reasonHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "pendingSpend",
+      "docs": [
+        "A payment waiting for the owner. PDA seeds: `[\"pending\", policy, request_id]`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "type": "pubkey"
+          },
+          {
+            "name": "requester",
+            "type": "pubkey"
+          },
+          {
+            "name": "recipientToken",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "requestId",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reasonHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
     {
       "name": "policy",
       "type": {
@@ -893,6 +1429,13 @@ export type Leash = {
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "approvalThreshold",
+            "docs": [
+              "Payments above this need the owner's approval (0 = never)."
+            ],
+            "type": "u64"
           }
         ]
       }

@@ -77,7 +77,7 @@ export function usePolicy(cfg: DemoConfig | null, conn: Connection | null) {
 export interface FeedEvent {
   id: string;
   ts: number;
-  type: "spend" | "rejection" | "agent" | "owner" | "run";
+  type: "spend" | "rejection" | "agent" | "owner" | "run" | "approval";
   [k: string]: any;
 }
 
