@@ -17,3 +17,6 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "npx tsx --test tests/leash.test.ts"
+
+[test]
+startup_wait = 60000
