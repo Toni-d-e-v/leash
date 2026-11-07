@@ -40,7 +40,7 @@ function requirementsFor(service: string, nonce: string, expiresAt: number): Pay
   };
 }
 
-function paymentRequired(req: Request, res: Response, service: string, error: string) {
+function paymentRequired(req: Request, res: Response, service: string, error: string, preview?: unknown) {
   const nonce = randomBytes(32).toString("hex");
   const expiresAt = Math.floor(Date.now() / 1000) + NONCE_TTL;
   issued.set(nonce, { service, expiresAt });
@@ -50,7 +50,8 @@ function paymentRequired(req: Request, res: Response, service: string, error: st
     resource: { url: `${SERVICES_URL}${req.path}`, description: readDemoConfig().services.find((s) => s.name === service)!.description, mimeType: "application/json", serviceName: service },
     accepts: [requirementsFor(service, nonce, expiresAt)],
   };
-  res.status(402).setHeader(HEADER_REQUIRED, b64json(body)).json(body);
+  // The header is the protocol; the JSON body may carry a free preview (an implementation detail).
+  res.status(402).setHeader(HEADER_REQUIRED, b64json(body)).json(preview ? { ...body, preview } : body);
 }
 
 async function facilitator<T>(path: "verify" | "settle", payload: PaymentPayload, requirements: PaymentRequirements): Promise<T> {
@@ -62,10 +63,10 @@ async function facilitator<T>(path: "verify" | "settle", payload: PaymentPayload
 }
 
 /** x402 middleware: serve `handler` only after a verified + settled Leash payment. */
-function paid(service: string, handler: (req: Request) => Promise<unknown> | unknown) {
+function paid(service: string, handler: (req: Request) => Promise<unknown> | unknown, preview?: () => unknown) {
   return async (req: Request, res: Response) => {
     const header = req.header(HEADER_SIGNATURE);
-    if (!header) return paymentRequired(req, res, service, `${HEADER_SIGNATURE} header is required`);
+    if (!header) return paymentRequired(req, res, service, `${HEADER_SIGNATURE} header is required`, preview?.());
 
     let payload: PaymentPayload;
     try { payload = unb64json<PaymentPayload>(header); }
@@ -94,7 +95,7 @@ app.get("/api/services", (_req, res) => {
 });
 app.get("/api/market-data", paid("market-data", () => marketData()));
 app.post("/api/summarize", paid("summarize", (req) => summarize(String(req.body?.text ?? ""))));
-app.get("/api/premium-intel", paid("premium-intel", () => premiumIntel(readDemoConfig().attacker)));
+app.get("/api/premium-intel", paid("premium-intel", () => premiumIntel(readDemoConfig().attacker), () => premiumIntel(readDemoConfig().attacker)));
 app.get("/health", (_req, res) => res.json({ ok: true, network: getNetwork() }));
 
 app.listen(SERVICES_PORT, () => console.log(`Leash paid APIs + facilitator on ${SERVICES_URL} (network ${getNetwork()})`));

@@ -83,7 +83,7 @@ export async function sendSpendForReceipt(conn: Connection, agent: Keypair, r: S
 
 export type CallResult =
   | { kind: "ok"; status: number; body: any; settlement?: SettlementResponse }
-  | { kind: "payment_required"; required: PaymentRequired; requirements: PaymentRequirements }
+  | { kind: "payment_required"; required: PaymentRequired; requirements: PaymentRequirements; body: any }
   | { kind: "error"; status: number; body: any; settlement?: SettlementResponse };
 
 /** One HTTP call. Pass `payment` to retry with a PAYMENT-SIGNATURE header. */
@@ -97,7 +97,7 @@ export async function httpCall(url: string, method: "GET" | "POST", body?: unkno
   if (res.status === 402 && !payment) {
     const h = res.headers.get(HEADER_REQUIRED);
     const required = h ? unb64json<PaymentRequired>(h) : (json as PaymentRequired);
-    return { kind: "payment_required", required, requirements: required.accepts[0] };
+    return { kind: "payment_required", required, requirements: required.accepts[0], body: json };
   }
   if (res.ok) return { kind: "ok", status: res.status, body: json, settlement };
   return { kind: "error", status: res.status, body: json, settlement };
