@@ -16,7 +16,8 @@ Agents increasingly need to pay for things: APIs, data, compute. Today you eithe
 2. **The agent holds only a session key.** The only thing that key can do is call `spend(amount, request_id, reason_hash)`.
 3. **The program checks every rule on every spend**, in a fixed order, each with its own error: `PolicyPaused` → `PolicyExpired` → `UnauthorizedAgent` → `RecipientNotAllowed` → `OverPerTxCap` → 24h window roll → `OverDailyCap`. Only then does it `transfer_checked` with the PDA as signer and emit a `SpendEvent`.
 4. **Every payment says why.** The agent writes a one-sentence reason before paying. `sha256(reason)` goes onchain as `reason_hash`, and the full text goes to the dashboard, which re-hashes it and checks it against the onchain event: a verifiable audit trail of why the AI spent money.
-5. **The owner keeps control:** `set_paused` (kill switch), `rotate_agent` (revoke a leaked key instantly), `update_limits`, `set_allowlist`, `withdraw`, `close_policy`.
+5. **Big payments need a human.** Above `approval_threshold`, `spend` fails with `NeedsApproval`. The agent calls `request_spend` instead, which creates a `PendingSpend` PDA after the same rule checks. The owner approves (rules re-checked, vault pays, `SpendEvent` emitted) or rejects from the dashboard.
+6. **The owner keeps control:** `set_paused` (kill switch), `rotate_agent` (revoke a leaked key instantly), `update_limits`, `set_allowlist`, `set_approval_threshold`, `withdraw`, `close_policy`.
 
 ### The demo
 
@@ -66,8 +67,8 @@ flowchart LR
 
 | Component | Path | What it is |
 |---|---|---|
-| Program | [`programs/leash/src/lib.rs`](programs/leash/src/lib.rs) | Anchor 0.31, ~390 lines incl. docs, 9 instructions |
-| Tests | [`tests/leash.test.ts`](tests/leash.test.ts) | 13 tests on LiteSVM (clock warp for the 24h window) |
+| Program | [`programs/leash/src/lib.rs`](programs/leash/src/lib.rs) | Anchor 0.31, 13 instructions, rules shared by `spend` / `request_spend` / `approve_spend` |
+| Tests | [`tests/leash.test.ts`](tests/leash.test.ts) | 18 tests on LiteSVM (clock warp for the 24h window, approval flow) |
 | Paid APIs + facilitator | [`services/`](services/) | Express, x402 v2 headers, nonce-bound payments, replay protection |
 | Agent | [`agent/`](agent/) | Claude tool use (`list_services`, `call_service`, `pay`, `check_budget`) + a deterministic scripted mode |
 | Dashboard | [`app/`](app/) | Next.js + Tailwind + wallet adapter, live budget meter, activity feed, kill switch |
@@ -86,7 +87,7 @@ cp .env.example .env        # CLUSTER=localnet by default
 npm run setup && npm run demo
 ```
 
-`npm run demo` starts a local validator with Leash preloaded, creates the keys, the test USDC mint and a fresh policy (0.20 per tx, 1.00 per day, two allowlisted APIs, 24h expiry, 5 USDC funded), starts the APIs, the event feed and the dashboard at **http://localhost:3000**, then runs the agent.
+`npm run demo` starts a local validator with Leash preloaded, creates the keys, the test USDC mint and a fresh policy (0.20 per tx, 1.00 per day, owner approval above 0.15, three allowlisted APIs, 24h expiry, 5 USDC funded), starts the APIs, the event feed and the dashboard at **http://localhost:3000**, then runs the agent.
 
 | Command | Does |
 |---|---|
@@ -94,13 +95,16 @@ npm run setup && npm run demo
 | `npm run agent -- --mode scripted` | Deterministic demo agent, no API key needed |
 | `npm run agent -- --mode llm` | Claude agent (`ANTHROPIC_API_KEY` in `.env`, model via `CLAUDE_MODEL`, default `claude-opus-5-5`) |
 | `npm run agent -- --mode llm --force-injection` | If Claude ignores the injection, act as an agent that follows it, to show the onchain block |
+| `npm run agent -- --mode scripted --approval` | Also buys a 0.18 report: the dashboard shows **Needs your approval**, and the agent waits |
+| `npm run approve [-- --reject]` | Approve or reject the latest pending payment from the CLI |
 | `npm run pause` / `npm run unpause` | Kill switch from the CLI (the dashboard button does the same) |
 | `npm run rotate-agent` | New agent key; the old one is revoked |
 | `npm run reset-demo` | Close the policy (refund vault + rent) and create a fresh one |
 | `npm run smoke` | x402: 402 → pay → 200, plus two replay attempts |
 | `npm run check:killswitch` | E2E: click Pause in the dashboard → `PolicyPaused` → Resume |
+| `npm run check:approval` | E2E: agent asks for 0.18 → click Approve in the dashboard → agent gets the data |
 
-The dashboard is read-only by default. Connecting the owner's wallet enables Pause/Resume. For local demos, where the owner is a CLI keypair, a localhost-only route signs with `.keys/owner.json` server-side (`LEASH_DEMO_SIGNER=0` disables it).
+The dashboard is read-only by default. Connecting the owner's wallet enables Pause/Resume and Approve/Reject. For local demos, where the owner is a CLI keypair, a localhost-only route signs with `.keys/owner.json` server-side (`LEASH_DEMO_SIGNER=0` disables it).
 
 ## What's mocked (honest list)
 
@@ -112,7 +116,7 @@ The dashboard is read-only by default. Connecting the owner's wallet enables Pau
 
 ## What's next
 
-- **Human approval above a threshold:** a `PendingSpend` PDA that the owner approves from their phone.
+- **Approvals on your phone:** push notifications for pending payments (the approval flow itself is built).
 - **`@leash/agent` SDK:** wrap any agent framework's payment tool in a few lines.
 - **Standard x402 `exact` compatibility:** get Leash added to facilitator smart-wallet allowlists so payments verify without our facilitator.
 - **Mainnet USDC**, with per-service budgets and spend analytics.

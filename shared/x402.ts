@@ -39,8 +39,11 @@ export interface PaymentPayload {
   x402Version: number;
   resource?: ResourceInfo;
   accepted: PaymentRequirements;
-  /** `leash` payload: a fully signed transaction containing a Leash `spend`. */
-  payload: { transaction: string };
+  /**
+   * `leash` payload: either a fully signed transaction containing a Leash `spend` (the facilitator
+   * submits it), or the signature of an already-settled payment, e.g. an owner-approved `approve_spend`.
+   */
+  payload: { transaction: string } | { signature: string };
 }
 
 export interface VerifyResponse { isValid: boolean; invalidReason?: string; invalidMessage?: string; payer?: string }

@@ -10,7 +10,9 @@ export async function sendOwner(ixs: TransactionInstruction[], owner: Keypair = 
   return sendAndConfirmTransaction(conn, new Transaction().add(...ixs), [owner], { commitment: "confirmed" });
 }
 
-/** Demo policy: 0.20/tx, 1.00/day, allowlist = allowlisted services, expires in 24h, funded with 5 USDC. */
+export const APPROVAL_THRESHOLD = 0.15;
+
+/** Demo policy: 0.20/tx, 1.00/day, allowlist = allowlisted services, expires in 24h, approval above 0.15, funded with 5 USDC. */
 export async function createDemoPolicy() {
   const cfg = readDemoConfig();
   const owner = loadKeypair("owner");
@@ -26,6 +28,7 @@ export async function createDemoPolicy() {
       perTxCap: toBase(0.2), dailyCap: toBase(1), expiresAt, allowlist,
     }),
     await ix.deposit(program, owner.publicKey, policy, mint, toBase(5)),
+    await ix.setApprovalThreshold(program, owner.publicKey, policy, toBase(APPROVAL_THRESHOLD)),
   ], owner);
 
   cfg.policy = { address: policy.toBase58(), policyId: policyId.toString(), vault: vaultAta(policy, mint).toBase58(), createdAt: Date.now() };

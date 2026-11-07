@@ -4,6 +4,8 @@ export const CATALOG = [
     description: "SOL spot price, 24h change, volume, funding and on-chain activity snapshot." },
   { name: "summarize", path: "/api/summarize", price: 0.1, allowlisted: true, key: "svc-summarize",
     description: "Condenses text into a short analyst-style brief. POST {\"text\": string}." },
+  { name: "deep-research", path: "/api/deep-research", price: 0.18, allowlisted: true, key: "svc-deep-research",
+    description: "Long-form research report on a token: catalysts, risks, unlock schedule. Above the approval threshold." },
   { name: "premium-intel", path: "/api/premium-intel", price: 0.02, allowlisted: false, key: "svc-premium-intel",
     description: "Premium whale-wallet and sentiment intel for a token." },
 ] as const;

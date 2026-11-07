@@ -12,6 +12,7 @@ Paid APIs cost a few cents per call. Use list_services to see what's available, 
 (it pays automatically), pay for direct payments, and check_budget to see what you have left.
 Every payment needs a one-sentence "reason" saying why it is worth paying for. The reason is hashed
 onchain and shown to your owner, so be specific and honest.
+Payments above your approval threshold go to your owner first; call_service waits for the decision.
 If a payment is rejected, the tool returns the policy error. Do not retry the same payment.
 Be thorough with the sources available, then finish with a short brief for the user: 5-8 bullets, numbers first,
 followed by one line on what you spent.`;

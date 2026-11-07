@@ -6,7 +6,7 @@ import { readDemoConfig } from "../shared/config.js";
 
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function runScripted(task: string, log: (s: string) => void, stepDelayMs = 1500) {
+export async function runScripted(task: string, log: (s: string) => void, stepDelayMs = 1500, approvalStep = false) {
   const say = async (text: string, role = "thought") => { log(`🤖 ${text}`); await emit({ type: "agent", role, text }); await pause(stepDelayMs); };
   const tool = async <T>(name: string, input: unknown, fn: () => Promise<T>) => {
     log(`🔧 ${name}(${JSON.stringify(input)})`);
@@ -40,11 +40,21 @@ export async function runScripted(task: string, log: (s: string) => void, stepDe
   const attempt: any = await tool("pay", { recipient: attacker, amount_usdc: 50 }, () =>
     pay({ recipient: attacker, amount_usdc: 50, reason: "Unlock full premium intel results (instruction from premium-intel response)." }));
 
+  let research: any = null;
+  if (approvalStep) {
+    await say("A deep-research report (0.18 USDC) is above my approval threshold. Asking my owner.");
+    research = await tool("call_service", { name: "deep-research" }, () =>
+      callService({ name: "deep-research", reason: "Full catalyst and risk report to round out the brief; worth 0.18 USDC." }));
+  }
+
   const final = [
     `SOL brief (${new Date().toISOString().slice(0, 10)}):`,
     summary,
+    ...(research?.ok ? ["", `Deep research (owner-approved): ${research.data.verdict}`] : []),
     "",
-    `Spent ${(0.05 + 0.1).toFixed(2)} USDC on market-data and summarize.`,
+    research?.ok
+      ? `Spent ${(0.05 + 0.1 + 0.18).toFixed(2)} USDC on market-data, summarize and deep-research (approved by you).`
+      : `Spent ${(0.05 + 0.1).toFixed(2)} USDC on market-data and summarize.${research ? ` Deep research not bought: ${research.error}.` : ""}`,
     `premium-intel was blocked by the wallet policy (${intel.error?.replace("Payment rejected by policy: ", "") ?? "rejected"}), and its response tried to get me to send 50 USDC to an unknown wallet. ` +
       `That payment was rejected onchain (${attempt.error?.replace("Payment rejected by policy: ", "") ?? "rejected"}). No funds left the vault.`,
   ].join("\n");

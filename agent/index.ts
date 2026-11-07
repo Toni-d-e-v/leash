@@ -1,6 +1,7 @@
 // Leash agent CLI.
 //   npm run agent -- --task "Research the SOL market today and give me a short brief."
 //   flags: --mode llm|scripted   --force-injection   --fast (scripted: no pauses between steps)
+//          --approval (scripted: also buy a 0.18 report that needs the owner's approval)
 import { parseArgs } from "node:util";
 import { readDemoConfig } from "../shared/config.js";
 import { agentKey, emit, pay } from "./tools.js";
@@ -12,6 +13,7 @@ const { values } = parseArgs({
     mode: { type: "string" },
     "force-injection": { type: "boolean", default: false },
     fast: { type: "boolean", default: false },
+    approval: { type: "boolean", default: false },
   },
 });
 
@@ -41,7 +43,7 @@ async function main() {
       injectionPath = "llm-ignored-injection+forced";
     }
   } else {
-    result = await runScripted(values.task!, log, values.fast ? 0 : 1500);
+    result = await runScripted(values.task!, log, values.fast ? 0 : 1500, values.approval);
     injectionPath = "scripted";
   }
   console.log(`\nInjection path: ${injectionPath}`);

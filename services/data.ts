@@ -81,3 +81,21 @@ function templateSummary(text: string): string {
   lines.push("• Takeaway: constructive short-term momentum; watch funding for signs of overheating.");
   return lines.join("\n");
 }
+
+export function deepResearch() {
+  return {
+    token: "SOL",
+    source: "Leash demo feed (mock data)",
+    catalysts: [
+      "Firedancer client rollout raising validator diversity and throughput headroom",
+      "Spot ETF flows: net inflows on 4 of the last 5 sessions",
+      "Stablecoin supply on Solana at an all-time high, supporting DEX volume",
+    ],
+    risks: [
+      "Funding turning sharply positive would signal crowded longs",
+      "Memecoin-driven fee spikes can congest priority-fee markets",
+    ],
+    unlocks: { next30dSol: 1_200_000, pctOfCirculating: 0.21 },
+    verdict: "Momentum constructive; risk is positioning, not fundamentals.",
+  };
+}

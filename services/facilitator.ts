@@ -20,8 +20,8 @@ interface Checked { tx: VersionedTransaction; policy: string; agent: string }
 const invalid = (invalidReason: string, invalidMessage?: string, payer = ""): VerifyResponse =>
   ({ isValid: false, invalidReason, invalidMessage, payer });
 
-/** Static checks on the transaction: it must contain exactly one matching Leash `spend`. */
-function inspect(p: PaymentPayload, req: PaymentRequirements): Checked | VerifyResponse {
+/** Version, scheme, network, nonce binding, expiry, replay. */
+function checkEnvelope(p: PaymentPayload, req: PaymentRequirements): VerifyResponse | null {
   if (p.x402Version !== X402_VERSION) return invalid("invalid_x402_version");
   if (req.scheme !== LEASH_SCHEME || p.accepted?.scheme !== LEASH_SCHEME) return invalid("unsupported_scheme");
   if (req.network !== network) return invalid("invalid_network");
@@ -29,7 +29,15 @@ function inspect(p: PaymentPayload, req: PaymentRequirements): Checked | VerifyR
   if (!nonce || p.accepted.extra?.nonce !== nonce) return invalid("invalid_payment_requirements", "nonce mismatch");
   if ((req.extra?.expiresAt ?? 0) < Date.now() / 1000) return invalid("invalid_payment_requirements", "payment request expired");
   if (usedNonces.has(nonce)) return invalid("invalid_transaction_state", "nonce already used (replay)");
+  return null;
+}
 
+/** Static checks on the transaction: it must contain exactly one matching Leash `spend`. */
+function inspect(p: PaymentPayload, req: PaymentRequirements): Checked | VerifyResponse {
+  const env = checkEnvelope(p, req);
+  if (env) return env;
+  const nonce = req.extra!.nonce;
+  if (!("transaction" in p.payload)) return invalid("invalid_payload", "missing transaction");
   let tx: VersionedTransaction;
   try { tx = VersionedTransaction.deserialize(Buffer.from(p.payload.transaction, "base64")); }
   catch { return invalid("invalid_payload", "transaction does not deserialize"); }
@@ -57,7 +65,24 @@ function eventMatches(ev: SpendEventData | undefined, req: PaymentRequirements) 
   return !!ev && ev.recipient === req.payTo && ev.amount >= BigInt(req.amount) && ev.requestId === req.extra?.nonce;
 }
 
+/** An already-settled payment: the confirmed tx must have succeeded, invoked Leash and emitted a matching SpendEvent. */
+async function verifySettled(p: PaymentPayload, req: PaymentRequirements): Promise<VerifyResponse> {
+  const env = checkEnvelope(p, req);
+  if (env) return env;
+  const sig = (p.payload as { signature: string }).signature;
+  const tx = await conn.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+  if (!tx) return invalid("invalid_transaction_state", "transaction not found");
+  if (tx.meta?.err) return invalid("invalid_transaction_state", "transaction failed");
+  const keys = tx.transaction.message.staticAccountKeys;
+  const callsLeash = tx.transaction.message.compiledInstructions.some((i) => keys[i.programIdIndex].equals(PROGRAM_ID));
+  if (!callsLeash) return invalid("invalid_payload", "transaction does not call the Leash program");
+  const ev = parseSpendEvents(tx.meta?.logMessages ?? []).find((e) => e.requestId === req.extra?.nonce);
+  if (!eventMatches(ev, req)) return invalid("invalid_payload", "SpendEvent does not match requirements");
+  return { isValid: true, payer: ev!.policy };
+}
+
 export async function verify(p: PaymentPayload, req: PaymentRequirements): Promise<VerifyResponse> {
+  if (p?.payload && "signature" in p.payload) return verifySettled(p, req);
   const c = inspect(p, req);
   if (!("tx" in c)) return c;
   const sim = await conn.simulateTransaction(c.tx, { sigVerify: true, commitment: "confirmed" });
@@ -78,6 +103,10 @@ export async function settle(p: PaymentPayload, req: PaymentRequirements): Promi
   const nonce = req.extra!.nonce;
   if (usedNonces.has(nonce)) return fail("invalid_transaction_state", "nonce already used (replay)", v.payer);
   usedNonces.add(nonce); // reserve before sending so concurrent retries can't double-settle
+  if ("signature" in p.payload) {
+    // Already settled onchain (e.g. owner-approved): nothing to submit.
+    return { success: true, payer: v.payer, transaction: p.payload.signature, network, amount: req.amount };
+  }
 
   const tx = VersionedTransaction.deserialize(Buffer.from(p.payload.transaction, "base64"));
   let sig = "";

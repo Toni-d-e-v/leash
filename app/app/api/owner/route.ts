@@ -11,6 +11,8 @@ const SCRIPTS: Record<string, string[]> = {
   pause: ["scripts/pause.ts", "on"],
   unpause: ["scripts/pause.ts", "off"],
   rotate: ["scripts/rotate-agent.ts"],
+  approve: ["scripts/approve.ts"],
+  reject: ["scripts/approve.ts", "--reject"],
 };
 
 function isLocal(req: NextRequest) {
@@ -24,9 +26,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!enabled() || !isLocal(req)) return NextResponse.json({ error: "demo signer disabled" }, { status: 403 });
-  const { action } = await req.json().catch(() => ({ action: "" }));
-  const args = SCRIPTS[action];
-  if (!args) return NextResponse.json({ error: "unknown action" }, { status: 400 });
+  const { action, pending } = await req.json().catch(() => ({ action: "" }));
+  const base = SCRIPTS[action];
+  if (!base) return NextResponse.json({ error: "unknown action" }, { status: 400 });
+  if (pending !== undefined && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(pending)) return NextResponse.json({ error: "bad pending address" }, { status: 400 });
+  const args = pending ? [base[0], pending, ...base.slice(1)] : base;
   const tsx = resolve(ROOT, "node_modules/.bin/tsx");
   return new Promise<NextResponse>((done) => {
     execFile(tsx, args, { cwd: ROOT, timeout: 60_000 }, (err, stdout, stderr) => {
