@@ -94,6 +94,10 @@ The client gets four tools: `leash_list_services`, `leash_check_budget`, `leash_
 
 ## Run it
 
+```bash
+git clone https://github.com/Toni-d-e-v/leash && cd leash
+```
+
 Requirements: Node 20+ and the Solana CLI (for `solana-test-validator`). Rust + Anchor are only needed to rebuild the program: a prebuilt `programs/leash/prebuilt/leash.so` is committed and used when `target/deploy/leash.so` doesn't exist, so `npm install && npm test` works with Node alone.
 
 ```bash

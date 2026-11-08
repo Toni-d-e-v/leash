@@ -6,6 +6,10 @@
 
 **Tracks:** AI Track (Top 3 overall is automatic)
 
+**Code:** https://github.com/Toni-d-e-v/leash
+
+**Demo video:** https://github.com/Toni-d-e-v/leash/blob/main/docs/demo-backup.webm (56s, silent backup)
+
 ---
 
 ## Inspiration
